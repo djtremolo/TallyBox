@@ -1,7 +1,6 @@
 #include "TallyBoxConfiguration.hpp"
 #include <Arduino_CRC32.h>
 
-
 void setDefaults(tallyBoxConfig_t& c)
 {
   c.sizeOfConfiguration = sizeof(tallyBoxConfig_t);
