@@ -1,5 +1,4 @@
 #include "TallyBoxConfiguration.hpp"
-#include <EEPROM.h>
 #include <Arduino_CRC32.h>
 
 

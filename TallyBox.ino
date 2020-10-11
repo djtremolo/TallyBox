@@ -1,6 +1,8 @@
 #include <ATEMbase.h>
 #include <ATEMstd.h>
 #include <SkaarhojPgmspace.h>
+#include <EEPROM.h>
+
 
 #define TALLYBOX_FIRMWARE_VERSION               "0.1.0"
 #define TALLYBOX_PROGRAM_EEPROM                 0
