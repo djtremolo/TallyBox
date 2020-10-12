@@ -6,7 +6,7 @@ void setDefaults(tallyBoxConfig_t& c)
   c.sizeOfConfiguration = sizeof(tallyBoxConfig_t);
   c.versionOfConfiguration = TALLYBOX_CONFIGURATION_VERSION;
 
-  c.cameraId = 0;
+  c.cameraId = TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID;
   IPAddress ip(TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE0,
                 TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE1,
                 TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE2,

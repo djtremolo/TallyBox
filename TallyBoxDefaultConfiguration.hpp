@@ -10,5 +10,7 @@
 #define TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE2     1
 #define TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE3     100
 
+#define TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID        1
+
 #define TALLYBOX_PROGRAM_EEPROM                         0       /*enable this for writing the default values to EEPROM, disable for normal operation*/
 
