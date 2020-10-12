@@ -7,24 +7,15 @@ typedef enum
 {
   CONNECTING_TO_WIFI = 0,
   CONNECTING_TO_ATEM_HOST,
-  CONNECTING_TO_TALLYBOX_HOST,
+  CONNECTING_TO_PEERNETWORK_HOST,
   RUNNING_ATEM,
-  RUNNING_TALLYBOX,
+  RUNNING_PEERNETWORK,
   ERROR,
   /**************/
   STATE_MAX
 } tallyBoxState_t;
 
-typedef enum
-{
-  PREVIEW_ON,
-  PREVIEW_OFF,
-  PROGRAM_ON,
-  PROGRAM_OFF
-} tallyBoxCameraEvent_t;
-
-void tallyBoxStateMachineFeedEvent(tallyBoxCameraEvent_t e);
-
+void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c);
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState = STATE_MAX);
 
 #endif

@@ -5,52 +5,78 @@
 #include <SkaarhojPgmspace.h>
 #include <WiFiUdp.h>
 
+
+#define SEQUENCE_SINGLE_SHORT       0x00000001
+#define SEQUENCE_DOUBLE_SHORT       0x00000005
+#define SEQUENCE_TRIPLE_SHORT       0x00000015
+#define SEQUENCE_SINGLE_LONG        0x000000FF
+#define SEQUENCE_BLINKING_LONG      0x00FF00FF
+#define SEQUENCE_BLINKING_SHORT     0x55555555
+#define SEQUENCE_CONSTANT_OFF       0x00000000
+#define SEQUENCE_CONSTANT_ON        0xFFFFFFFF
+
+
 ATEMstd AtemSwitcher;
 WiFiUDP Udp;
-
 static bool isMaster = true;
 static bool tallyPreview = false;
 static bool tallyProgram = false;
 static bool masterCommunicationFrozen = false;
+static tallyBoxState_t myState = CONNECTING_TO_WIFI; /*start from here*/
+static uint32_t lastReceivedMasterMessageInTicks = 0;
+static uint32_t cumulativeTickCounter = 0;
 
 
 const uint32_t ledSequence[STATE_MAX] = 
 {
-  0x00000001,   /*CONNECTING_TO_WIFI*/
-  0x00000005,   /*CONNECTING_TO_ATEM_HOST*/
-  0x00000015,   /*CONNECTING_TO_TALLYBOX_HOST*/
-
-  0x01010101,   /*RUNNING_ATEM*/
-
-//  0x00000000,   /*RUNNING_ATEM*/
-  0x00000000,   /*RUNNING_TALLYBOX*/
-  0x0000000F    /*ERROR*/
+  SEQUENCE_SINGLE_SHORT,   /*CONNECTING_TO_WIFI*/
+  SEQUENCE_DOUBLE_SHORT,   /*CONNECTING_TO_ATEM_HOST*/
+  SEQUENCE_TRIPLE_SHORT,   /*CONNECTING_TO_PEERNETWORK_HOST*/
+  SEQUENCE_CONSTANT_OFF,   /*RUNNING_ATEM*/
+  SEQUENCE_CONSTANT_OFF,   /*RUNNING_PEERNETWORK*/
+  SEQUENCE_SINGLE_LONG    /*ERROR*/
 };
 
-tallyBoxState_t myState = CONNECTING_TO_WIFI; /*start from here*/
 
-uint32_t getLedSequenceForRunState()
+
+/*** INTERNAL FUNCTIONS **************************************/
+static uint32_t getLedSequenceForRunState();
+static void updateLed(uint16_t tick);
+static void peerNetworkInitialize(uint16_t localPort);
+static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t maxLen);
+static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t len);
+static void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
+static bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel);
+static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState);
+static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalState);
+static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *internalState);
+static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState);
+static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState);
+/*************************************************************/
+
+
+static uint32_t getLedSequenceForRunState()
 {
   uint32_t outMask = 0;
 
   if(masterCommunicationFrozen)
   {
-    outMask = 0xFF00FF00;
+    outMask = SEQUENCE_BLINKING_LONG;
   }
   else
   {
     if(tallyPreview)
-      outMask |= 0x55555555;
+      outMask |= SEQUENCE_BLINKING_SHORT;
     if(tallyProgram)
-      outMask |= 0xFFFFFFFF;
+      outMask |= SEQUENCE_CONSTANT_ON;
   }
 
   return outMask;
 }
 
-void updateLed(uint16_t tick)
+static void updateLed(uint16_t tick)
 {
-  bool isRunning = (myState==RUNNING_ATEM || myState==RUNNING_TALLYBOX);
+  bool isRunning = (myState==RUNNING_ATEM || myState==RUNNING_PEERNETWORK);
   uint32_t seq = (isRunning ? getLedSequenceForRunState() : ledSequence[myState]);
   bool state = (seq >> tick) & 0x00000001;
   int ledState = (state ? LOW : HIGH);
@@ -58,18 +84,13 @@ void updateLed(uint16_t tick)
   digitalWrite(LED_BUILTIN, ledState);
 }
 
-
-void tallyBoxStateMachineFeedEvent(tallyBoxCameraEvent_t e)
-{
-}
-
-void peerNetworkInitialize(uint16_t localPort)
+static void peerNetworkInitialize(uint16_t localPort)
 {
   Udp.begin(localPort);  
 }
 
 
-uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t maxLen)
+static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t maxLen)
 {
   uint16_t ret = 0;
   if(maxLen >= 4)
@@ -84,7 +105,7 @@ uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16
   return ret;
 }
 
-bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t len)
+static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t len)
 {
   bool ret = false;
   if(len == 4)
@@ -103,7 +124,7 @@ bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t
 }
 
 
-void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel)
+static void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel)
 {
   uint8_t buf[4];
 
@@ -121,60 +142,185 @@ void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redCha
   Serial.println("Program="+String(redChannel)+", Preview="+String(greenChannel)+".");
 }
 
-bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel)
+static bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel)
 {
   bool ret = false;
 
-  Serial.print("A");
-  //if(Udp.available())
+  int packetSize = Udp.parsePacket();
+  Serial.print("B");
+  if(packetSize)
   {
-    int packetSize = Udp.parsePacket();
-    Serial.print("B");
-    if(packetSize)
+    uint8_t buf[255];
+    int len = Udp.read(buf, 255);
+    uint16_t tmpGreen;
+    uint16_t tmpRed;
+    Serial.print("C");
+    
+    if(peerNetworkDeSerialize(tmpGreen, tmpRed, buf, packetSize))
     {
-      uint8_t buf[255];
-      int len = Udp.read(buf, 255);
-      uint16_t tmpGreen;
-      uint16_t tmpRed;
-      Serial.print("C");
-      
-      if(peerNetworkDeSerialize(tmpGreen, tmpRed, buf, packetSize))
-      {
-        Serial.print("D");
-        greenChannel = tmpGreen;
-        redChannel = tmpRed;
+      Serial.print("D");
+      greenChannel = tmpGreen;
+      redChannel = tmpRed;
 
-        ret = true;
-      }
+      ret = true;
     }
   }
   return ret;
 }
 
-void stateConnectingToWifi()
+static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
 {
-  
+  switch(internalState[CONNECTING_TO_WIFI])
+  {
+    case 0: /*init wifi device*/
+      WiFi.begin(c.wifiSSID, c.wifiPasswd);
+      internalState[CONNECTING_TO_WIFI] = 1;
+      break;
+
+    case 1: /*wait*/
+      if(WiFi.status() != WL_CONNECTED)
+      {
+        Serial.println("Connecting to WiFi..."); 
+      }
+      else
+      {
+        internalState[CONNECTING_TO_WIFI] = 2;
+      }
+      break;
+
+    case 2: /*advance to next*/
+      Serial.print("Wifi connected: ");
+      Serial.println(WiFi.localIP());
+      internalState[CONNECTING_TO_WIFI] = 0;
+
+      if(isMaster)
+      {
+        myState = CONNECTING_TO_ATEM_HOST;
+      }
+      else
+      {
+        /*start listening for peerNetwork updates from master box*/
+        peerNetworkInitialize(7493);
+        myState = CONNECTING_TO_PEERNETWORK_HOST;
+      }  
+      break;
+
+    default:
+      Serial.println("*** Error: illegal internalstate (CONNECTING_TO_WIFI) ***");
+      internalState[CONNECTING_TO_WIFI] = 0;
+      break;
+  }      
 }
+
+static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalState)
+{
+  switch(internalState[CONNECTING_TO_ATEM_HOST])
+  {
+    case 0:
+      AtemSwitcher.begin(IPAddress(c.hostAddressU32));
+      AtemSwitcher.serialOutput(0x80);
+      AtemSwitcher.connect();
+      internalState[CONNECTING_TO_ATEM_HOST] = 1;
+      break;
+
+    case 1:
+      AtemSwitcher.runLoop();
+      if(!AtemSwitcher.isConnected())
+      {
+        Serial.println("Connecting to ATEM..."); 
+      }
+      else
+      {
+        internalState[CONNECTING_TO_ATEM_HOST] = 2;
+      }          
+      break;
+    
+    case 2: /*advance to next*/
+      Serial.println("Connected to ATEM host!");
+      internalState[CONNECTING_TO_ATEM_HOST] = 0;
+      myState = RUNNING_ATEM;
+      break;
+
+    default:
+      Serial.println("*** Error: illegal internalstate (CONNECTING_TO_ATEM_HOST) ***");
+      internalState[CONNECTING_TO_WIFI] = 0;
+      break;
+  }
+}
+
+static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *internalState)
+{
+  myState = RUNNING_PEERNETWORK;
+}
+
+
+static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
+{
+  Serial.println("RUNNING_ATEM");
+
+  AtemSwitcher.runLoop();
+
+  if(AtemSwitcher.isConnected())
+  {
+    masterCommunicationFrozen = false;
+    lastReceivedMasterMessageInTicks = cumulativeTickCounter;
+  }
+
+  if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > 10)
+  {
+    masterCommunicationFrozen = true;
+
+    /*jump to reconnection*/
+    myState = CONNECTING_TO_ATEM_HOST;
+    internalState[CONNECTING_TO_ATEM_HOST] = 0;
+  }
+
+  if(!masterCommunicationFrozen)
+  {
+    peerNetworkSend(c, AtemSwitcher.getPreviewInput(), AtemSwitcher.getProgramInput());
+  }
+}
+
+static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
+{
+  uint16_t tmpA, tmpB;
+
+  if(peerNetworkReceive(tmpA, tmpB))
+  {
+    Serial.println("Received master frame");
+    tallyPreview = (tmpA == c.cameraId);
+    tallyProgram = (tmpB == c.cameraId);
+    lastReceivedMasterMessageInTicks = cumulativeTickCounter;
+    masterCommunicationFrozen = false;
+  }
+
+  if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > 10)
+  {
+    masterCommunicationFrozen = true;
+  }
+}
+
+void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
+{
+  isMaster = (c.cameraId == 1); /*ID 1 behaves as master: connects to ATEM and forwards the information via PeerNetwork*/
+}
+
 
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState)
 {
   uint16_t currentTick = (millis() / 100) % 32; /*tick will count 0...31,0...31 etc*/
   static uint8_t internalState[STATE_MAX] = {};
   static uint16_t prevTick = 0;
-  static uint32_t tickCounter = 0;
-  static uint32_t lastReceivedMasterMessageInTicks = 0;
-  uint16_t programCh, previewCh;
-  uint16_t tmpA, tmpB;
 
+  /*only run state machine once per tick*/
   if(currentTick == prevTick)
   {
-    /*run only once per tick*/
     return; 
   }
   prevTick = currentTick;
 
-  tickCounter++;
-  isMaster = c.cameraId == 1; 
+  /*cumulative tick counter (100ms ticks) for timeout handling*/
+  cumulativeTickCounter++;
 
   /*external transition required?*/
   if(switchToState != STATE_MAX)
@@ -183,134 +329,30 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
     internalState[myState] = 0;
   }
 
+  /*update diagnostic led to indicate running state*/
   updateLed(currentTick);
 
+  /*process functionality*/
   switch(myState)
   {
     case CONNECTING_TO_WIFI:
-      switch(internalState[CONNECTING_TO_WIFI])
-      {
-        case 0: /*init wifi device*/
-          WiFi.begin(c.wifiSSID, c.wifiPasswd);
-          internalState[CONNECTING_TO_WIFI] = 1;
-          break;
-
-        case 1: /*wait*/
-          if(WiFi.status() != WL_CONNECTED)
-          {
-            Serial.println("Connecting to WiFi..."); 
-          }
-          else
-          {
-            internalState[CONNECTING_TO_WIFI] = 2;
-          }
-          break;
-
-        case 2: /*advance to next*/
-          Serial.print("Wifi connected: ");
-          Serial.println(WiFi.localIP());
-          internalState[CONNECTING_TO_WIFI] = 0;
-
-          if(isMaster)
-          {
-            myState = CONNECTING_TO_ATEM_HOST;
-          }
-          else
-          {
-            /*start listening for peerNetwork updates from master box*/
-            peerNetworkInitialize(7493);
-            myState = CONNECTING_TO_TALLYBOX_HOST;
-          }  
-          break;
-
-        default:
-          Serial.println("*** Error: illegal internalstate (CONNECTING_TO_WIFI) ***");
-          internalState[CONNECTING_TO_WIFI] = 0;
-          break;
-      }      
+      stateConnectingToWifi(c, internalState);
       break;
 
     case CONNECTING_TO_ATEM_HOST:
-      switch(internalState[CONNECTING_TO_ATEM_HOST])
-      {
-        case 0:
-          AtemSwitcher.begin(IPAddress(c.hostAddressU32));
-          AtemSwitcher.serialOutput(0x80);
-          AtemSwitcher.connect();
-          internalState[CONNECTING_TO_ATEM_HOST] = 1;
-          break;
-
-        case 1:
-          AtemSwitcher.runLoop();
-          if(!AtemSwitcher.isConnected())
-          {
-            Serial.println("Connecting to ATEM..."); 
-          }
-          else
-          {
-            internalState[CONNECTING_TO_ATEM_HOST] = 2;
-          }          
-          break;
-        
-        case 2: /*advance to next*/
-          Serial.println("Connected to ATEM host!");
-          internalState[CONNECTING_TO_ATEM_HOST] = 0;
-          myState = RUNNING_ATEM;
-          break;
-
-        default:
-          Serial.println("*** Error: illegal internalstate (CONNECTING_TO_ATEM_HOST) ***");
-          internalState[CONNECTING_TO_WIFI] = 0;
-          break;
-      }
+      stateConnectingToAtemHost(c, internalState);
       break;
 
-    case CONNECTING_TO_TALLYBOX_HOST:
-      myState = RUNNING_TALLYBOX;
+    case CONNECTING_TO_PEERNETWORK_HOST:
+      stateConnectingToPeerNetworkHost(c, internalState);
       break;
 
     case RUNNING_ATEM:
-      Serial.println("RUNNING_ATEM");
-
-      AtemSwitcher.runLoop();
-
-      if(AtemSwitcher.isConnected())
-      {
-        masterCommunicationFrozen = false;
-        lastReceivedMasterMessageInTicks = tickCounter;
-      }
-
-      if(tickCounter - lastReceivedMasterMessageInTicks > 10)
-      {
-        masterCommunicationFrozen = true;
-
-        /*jump to reconnection*/
-        myState = CONNECTING_TO_ATEM_HOST;
-        internalState[CONNECTING_TO_ATEM_HOST] = 0;
-      }
-
-      if(!masterCommunicationFrozen)
-      {
-        peerNetworkSend(c, AtemSwitcher.getPreviewInput(), AtemSwitcher.getProgramInput());
-      }
+      stateRunningAtem(c, internalState);
       break;
 
-    case RUNNING_TALLYBOX:
-      Serial.println("RUNNING_TALLYBOX");
-
-      if(peerNetworkReceive(tmpA, tmpB))
-      {
-        Serial.println("Received master frame");
-        tallyPreview = (tmpA == c.cameraId);
-        tallyProgram = (tmpB == c.cameraId);
-        lastReceivedMasterMessageInTicks = tickCounter;
-        masterCommunicationFrozen = false;
-      }
-
-      if(tickCounter - lastReceivedMasterMessageInTicks > 10)
-      {
-        masterCommunicationFrozen = true;
-      }
+    case RUNNING_PEERNETWORK:
+      stateRunningPeerNetwork(c, internalState);
       break;
 
     case ERROR:
@@ -322,6 +364,4 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
       break;
   }
 }
-
-//void tallyBoxStateMachine
 
