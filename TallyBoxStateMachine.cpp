@@ -4,6 +4,7 @@
 #include <ATEMstd.h>
 #include <SkaarhojPgmspace.h>
 #include <WiFiUdp.h>
+#include "OTAUpgrade.hpp"
 
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
@@ -138,8 +139,6 @@ static void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t
 
   tallyPreview = (greenChannel == c.cameraId);
   tallyProgram = (redChannel == c.cameraId);
-
-  Serial.println("Program="+String(redChannel)+", Preview="+String(greenChannel)+".");
 }
 
 static bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel)
@@ -147,18 +146,15 @@ static bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel)
   bool ret = false;
 
   int packetSize = Udp.parsePacket();
-  Serial.print("B");
   if(packetSize)
   {
     uint8_t buf[255];
     int len = Udp.read(buf, 255);
     uint16_t tmpGreen;
     uint16_t tmpRed;
-    Serial.print("C");
     
     if(peerNetworkDeSerialize(tmpGreen, tmpRed, buf, packetSize))
     {
-      Serial.print("D");
       greenChannel = tmpGreen;
       redChannel = tmpRed;
 
@@ -203,6 +199,11 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
         peerNetworkInitialize(7493);
         myState = CONNECTING_TO_PEERNETWORK_HOST;
       }  
+
+      /*initialize Over-the-Air upgdade mechanism*/
+      WiFi.mode(WIFI_STA);
+      OTAInitialize();
+
       break;
 
     default:
@@ -256,8 +257,6 @@ static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *inter
 
 static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
 {
-  Serial.println("RUNNING_ATEM");
-
   AtemSwitcher.runLoop();
 
   if(AtemSwitcher.isConnected())
@@ -302,15 +301,20 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
 
 void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 {
+  randomSeed(analogRead(5));  /*random needed by ATEM library*/
+
   isMaster = (c.cameraId == 1); /*ID 1 behaves as master: connects to ATEM and forwards the information via PeerNetwork*/
 }
 
 
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState)
 {
-  uint16_t currentTick = (millis() / 100) % 32; /*tick will count 0...31,0...31 etc*/
+  uint16_t currentTick = (millis() / 10) % 320; /*tick will count 0...31,0...31 etc*/
   static uint8_t internalState[STATE_MAX] = {};
   static uint16_t prevTick = 0;
+
+  /*call over-the-air update mechanism from here to provide faster speed*/
+  OTAUpdate();
 
   /*only run state machine once per tick*/
   if(currentTick == prevTick)
@@ -319,7 +323,7 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   }
   prevTick = currentTick;
 
-  /*cumulative tick counter (100ms ticks) for timeout handling*/
+  /*cumulative tick counter (10ms ticks) for timeout handling*/
   cumulativeTickCounter++;
 
   /*external transition required?*/
@@ -330,7 +334,7 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   }
 
   /*update diagnostic led to indicate running state*/
-  updateLed(currentTick);
+  updateLed(currentTick/10);
 
   /*process functionality*/
   switch(myState)

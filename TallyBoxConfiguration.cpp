@@ -1,5 +1,7 @@
 #include "TallyBoxConfiguration.hpp"
 #include <Arduino_CRC32.h>
+#include <EEPROM.h>
+
 
 void setDefaults(tallyBoxConfig_t& c)
 {
@@ -139,6 +141,9 @@ void dumpConf(String confName, tallyBoxConfig_t& c)
 
 void tallyBoxConfiguration(tallyBoxConfig_t& c)
 {
+  /*initialize emulated EEPROM*/
+  EEPROM.begin(512);
+
   /*Note: both functions are blocking. If the writing or reading fails, the program stops and will wait for reset*/
   handleConfigurationWrite(c);
   handleConfigurationRead(c);
