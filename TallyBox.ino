@@ -12,8 +12,6 @@ ATEMstd AtemSwitcher;
 
 //eth.addr==ec:fa:bc:c0:a9:cd
 
-/*configuration mechanism included as a cpp file*/
-
 void setup() 
 { 
   tallyBoxConfig_t myConf;
