@@ -1,39 +1,38 @@
 #include <ESP8266WiFi.h>
-#include <ATEMbase.h>
-#include <ATEMstd.h>
-#include <SkaarhojPgmspace.h>
 #include <EEPROM.h>
 #include "TallyBoxConfiguration.hpp"
+#include "TallyBoxStateMachine.hpp"
+
 
 #define TALLYBOX_FIRMWARE_VERSION               "0.1.0"
-#define TALLYBOX_PROGRAM_EEPROM                 0
 
-ATEMstd AtemSwitcher;
+tallyBoxConfig_t myConf;
 
 //eth.addr==ec:fa:bc:c0:a9:cd
 
 void setup() 
 { 
-  tallyBoxConfig_t myConf;
+
+  pinMode(LED_BUILTIN, OUTPUT);
 
   randomSeed(analogRead(5));  // For random port selection
 
   Serial.begin(115200);
-  Serial.println("\n- - - - - - - -\nTallyBox version "+String(TALLYBOX_FIRMWARE_VERSION)+".\n- - - - - - - -\n");
+  Serial.println("\n- - - - - - - -\nTallyBox version Jee "+String(TALLYBOX_FIRMWARE_VERSION)+".\n- - - - - - - -\n");
 
   EEPROM.begin(512);
 
   /*handle configuration write/read. Will block in case of non-recoverable failure.*/
   tallyBoxConfiguration(myConf);
 
+
+
+
   // Initialize a connection to the switcher:
-  AtemSwitcher.begin(IPAddress(myConf.hostAddressU32));
-  AtemSwitcher.serialOutput(0x80);
-  AtemSwitcher.connect();
 }
 
 void loop() 
 {
-  AtemSwitcher.runLoop();
+  tallyBoxStateMachineUpdate(myConf);
     
 }

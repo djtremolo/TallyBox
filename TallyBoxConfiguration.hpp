@@ -4,11 +4,6 @@
 #include <arduino.h>
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
-
-/*please create the following header file with content:
-#define TALLYBOX_CONFIGURATION_DEFAULT_SSID     "set-to-your-ssid"
-#define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD   "set-to-your-pwd"
-*/
 #include "TallyBoxDefaultConfiguration.hpp"
 
 #define TALLYBOX_CONFIGURATION_VERSION          1
