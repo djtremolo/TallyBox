@@ -1,6 +1,7 @@
 #ifndef __TALLYBOXPEERNETWORK_HPP__
 #define __TALLYBOXPEERNETWORK_HPP__
 #include "Arduino.h"
+#include <WiFiUdp.h>
 #include "TallyBoxConfiguration.hpp"
 
 void peerNetworkInitialize(uint16_t localPort);

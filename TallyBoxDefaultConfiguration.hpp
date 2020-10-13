@@ -1,6 +1,6 @@
-#if 0   
+#if 1   
 #define TALLYBOX_CONFIGURATION_DEFAULT_SSID             "myTallyNetSSID"        /*customize*/
-#define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           "myTallyNetPassword"    /*customize*/
+#define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           ""    /*customize*/
 #else
 #include "myPrivateCredentials.hpp"
 #endif
@@ -10,7 +10,7 @@
 #define TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE2     1
 #define TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE3     100
 
-#define TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID        3
+#define TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID        1
 
-#define TALLYBOX_PROGRAM_EEPROM                         1       /*enable this for writing the default values to EEPROM, disable for normal operation*/
+#define TALLYBOX_PROGRAM_EEPROM                         0       /*enable this for writing the default values to EEPROM, disable for normal operation*/
 

@@ -6,7 +6,7 @@
 #include "OTAUpgrade.hpp"
 #include "TallyBoxOutput.hpp"
 #include "TallyBoxPeerNetwork.hpp"
-
+#include "TallyBoxInfra.hpp"
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
 #define SEQUENCE_DOUBLE_SHORT       0x00000005
@@ -71,8 +71,9 @@ static uint32_t getLedSequenceForRunState()
   return outMask;
 }
 
-static void updateLed(uint16_t tick)
+static void updateLed()
 {
+  uint16_t tick = getCurrentTick() / 10;
   bool isRunning = (myState==RUNNING_ATEM || myState==RUNNING_PEERNETWORK);
   uint32_t seq = (isRunning ? getLedSequenceForRunState() : ledSequence[myState]);
   bool state = (seq >> tick) & 0x00000001;
@@ -87,6 +88,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
   switch(internalState[CONNECTING_TO_WIFI])
   {
     case 0: /*init wifi device*/
+      Serial.print("Connecting to WiFi"); 
       WiFi.begin(c.wifiSSID, c.wifiPasswd);
       internalState[CONNECTING_TO_WIFI] = 1;
       break;
@@ -94,7 +96,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
     case 1: /*wait*/
       if(WiFi.status() != WL_CONNECTED)
       {
-        Serial.println("Connecting to WiFi..."); 
+        Serial.print(".");
       }
       else
       {
@@ -103,7 +105,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       break;
 
     case 2: /*advance to next*/
-      Serial.print("Wifi connected: ");
+      Serial.print("\r\nWifi connected: ");
       Serial.println(WiFi.localIP());
       internalState[CONNECTING_TO_WIFI] = 0;
 
@@ -140,13 +142,14 @@ static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalStat
       AtemSwitcher.serialOutput(0x80);
       AtemSwitcher.connect();
       internalState[CONNECTING_TO_ATEM_HOST] = 1;
+      Serial.println("Connecting to ATEM"); 
       break;
 
     case 1:
       AtemSwitcher.runLoop();
       if(!AtemSwitcher.isConnected())
       {
-        Serial.println("Connecting to ATEM..."); 
+        Serial.print(".");
       }
       else
       {
@@ -155,7 +158,7 @@ static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalStat
       break;
     
     case 2: /*advance to next*/
-      Serial.println("Connected to ATEM host!");
+      Serial.println("\r\nConnected to ATEM host!");
       internalState[CONNECTING_TO_ATEM_HOST] = 0;
       myState = RUNNING_ATEM;
       break;
@@ -266,9 +269,11 @@ void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState)
 {
-  uint16_t currentTick = (millis() / 10) % 320; /*tick will count 0...31,0...31 etc*/
+  static tallyBoxState_t prevState = STATE_MAX; /*force printing out the first state*/
   static uint8_t internalState[STATE_MAX] = {};
   static uint16_t prevTick = 0;
+  uint16_t currentTick = getCurrentTick();  /*0...319,0...319...*/
+  bool printStateName = false;
 
   /*call over-the-air update mechanism from here to provide faster speed*/
   OTAUpdate();
@@ -294,28 +299,38 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   }
 
   /*update diagnostic led to indicate running state*/
-  updateLed(currentTick/10);
+  updateLed();
+
+  /*check whether to print out the state name*/
+  printStateName = (myState != prevState);
+  prevState = myState;
 
   /*process functionality*/
   switch(myState)
   {
     case CONNECTING_TO_WIFI:
+      if(printStateName) Serial.println("CONNECTING_TO_WIFI");
+
       stateConnectingToWifi(c, internalState);
       break;
 
     case CONNECTING_TO_ATEM_HOST:
+      if(printStateName) Serial.println("CONNECTING_TO_ATEM_HOST");
       stateConnectingToAtemHost(c, internalState);
       break;
 
     case CONNECTING_TO_PEERNETWORK_HOST:
+      if(printStateName) Serial.println("CONNECTING_TO_PEERNETWORK_HOST");
       stateConnectingToPeerNetworkHost(c, internalState);
       break;
 
     case RUNNING_ATEM:
+      if(printStateName) Serial.println("RUNNING_ATEM");
       stateRunningAtem(c, internalState);
       break;
 
     case RUNNING_PEERNETWORK:
+      if(printStateName) Serial.println("RUNNING_PEERNETWORK");
       stateRunningPeerNetwork(c, internalState);
       break;
 
