@@ -43,6 +43,7 @@ const uint32_t ledSequence[STATE_MAX] =
 /*** INTERNAL FUNCTIONS **************************************/
 static uint32_t getLedSequenceForRunState();
 static void updateLed(uint16_t tick);
+static bool tallyDataIsValid();
 static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
 static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState);
 static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalState);
@@ -259,13 +260,22 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
   }
 }
 
+static bool tallyDataIsValid()
+{
+  bool ret = false;
+  if(((myState==RUNNING_ATEM) || (myState==RUNNING_PEERNETWORK)) && (!masterCommunicationFrozen))
+  {
+    ret = true;
+  }
+  return ret;
+}
+
 void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 {
   randomSeed(analogRead(5));  /*random needed by ATEM library*/
 
   isMaster = (c.cameraId == 1); /*ID 1 behaves as master: connects to ATEM and forwards the information via PeerNetwork*/
 }
-
 
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState)
 {
@@ -277,9 +287,6 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   /*call over-the-air update mechanism from here to provide faster speed*/
   OTAUpdate();
-
-  /*update main output: Red&Green tally lights*/
-  outputUpdate(tallyPreview, tallyProgram);
 
   /*only run state machine once per tick*/
   if(currentTick == prevTick)
@@ -297,9 +304,6 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
     myState = switchToState;
     internalState[myState] = 0;
   }
-
-  /*update diagnostic led to indicate running state*/
-  updateLed();
 
   /*check whether to print out the state name*/
   printStateName = (myState != prevState);
@@ -342,5 +346,11 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
       Serial.println("*** INVALID STATE ***");
       break;
   }
+
+  /*update main output: Red&Green tally lights*/
+  outputUpdate(tallyDataIsValid(), tallyPreview, tallyProgram);
+
+  /*update diagnostic led to indicate running state*/
+  updateLed();
 }
 

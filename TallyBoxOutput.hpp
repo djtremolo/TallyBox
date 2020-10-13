@@ -3,7 +3,7 @@
 #include "Arduino.h"
 
 void setOutputBrightness(uint16_t percent);
-void outputUpdate(bool tallyPreview, bool tallyProgram);
-void outputUpdate();
+void outputUpdate(bool dataIsValid, bool tallyPreview, bool tallyProgram);
+void outputUpdate(bool dataIsValid);
 
 #endif
