@@ -14,6 +14,9 @@ void setup()
 
   /*handle configuration write/read. Will block in case of non-recoverable failure.*/
   tallyBoxConfiguration(myConf);
+
+  /*initialize main functionality*/
+  tallyBoxStateMachineInitialize(myConf);
 }
 
 void loop()

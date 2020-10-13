@@ -19,7 +19,7 @@
 
 ATEMstd AtemSwitcher;
 WiFiUDP Udp;
-static bool isMaster = true;
+static bool isMaster = false;
 static bool tallyPreview = false;
 static bool tallyProgram = false;
 static bool masterCommunicationFrozen = false;

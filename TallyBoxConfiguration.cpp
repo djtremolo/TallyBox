@@ -104,8 +104,6 @@ void handleConfigurationWrite(tallyBoxConfig_t& c)
     Serial.println("<not written as the existing content was identical>");
   }  
 
-  Serial.println("Blocked after writing, waiting for reset.");
-  while(1);
 #endif
 }
 
