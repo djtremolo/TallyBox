@@ -5,6 +5,7 @@
 #include <SkaarhojPgmspace.h>
 #include <WiFiUdp.h>
 #include "OTAUpgrade.hpp"
+#include "TallyBoxOutput.hpp"
 
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
@@ -315,6 +316,9 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   /*call over-the-air update mechanism from here to provide faster speed*/
   OTAUpdate();
+
+  /*update main output: Red&Green tally lights*/
+  outputUpdate(tallyPreview, tallyProgram);
 
   /*only run state machine once per tick*/
   if(currentTick == prevTick)
