@@ -3,9 +3,9 @@
 #include <ATEMbase.h>
 #include <ATEMstd.h>
 #include <SkaarhojPgmspace.h>
-#include <WiFiUdp.h>
 #include "OTAUpgrade.hpp"
 #include "TallyBoxOutput.hpp"
+#include "TallyBoxPeerNetwork.hpp"
 
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
@@ -19,7 +19,6 @@
 
 
 ATEMstd AtemSwitcher;
-WiFiUDP Udp;
 static bool isMaster = false;
 static bool tallyPreview = false;
 static bool tallyProgram = false;
@@ -44,11 +43,7 @@ const uint32_t ledSequence[STATE_MAX] =
 /*** INTERNAL FUNCTIONS **************************************/
 static uint32_t getLedSequenceForRunState();
 static void updateLed(uint16_t tick);
-static void peerNetworkInitialize(uint16_t localPort);
-static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t maxLen);
-static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t len);
-static void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
-static bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel);
+static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
 static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState);
 static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalState);
 static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *internalState);
@@ -86,84 +81,6 @@ static void updateLed(uint16_t tick)
   digitalWrite(LED_BUILTIN, ledState);
 }
 
-static void peerNetworkInitialize(uint16_t localPort)
-{
-  Udp.begin(localPort);  
-}
-
-
-static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t maxLen)
-{
-  uint16_t ret = 0;
-  if(maxLen >= 4)
-  {
-    uint16_t idx = 0;
-    buf[idx++] = (uint8_t)(grn >> 8) & 0x00ff;
-    buf[idx++] = (uint8_t)(grn) & 0x00ff;
-    buf[idx++] = (uint8_t)(red >> 8) & 0x00ff;
-    buf[idx++] = (uint8_t)(red) & 0x00ff;
-    ret = idx;
-  }
-  return ret;
-}
-
-static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, uint16_t len)
-{
-  bool ret = false;
-  if(len == 4)
-  {
-    grn = (uint16_t)buf[0];
-    grn <<= 8;
-    grn |= (uint16_t)buf[1];
-
-    red = (uint16_t)buf[2];
-    red <<= 8;
-    red |= (uint16_t)buf[3];
-
-    ret = true;
-  }
-  return ret;
-}
-
-
-static void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel)
-{
-  uint8_t buf[4];
-
-  uint16_t bufLen = peerNetworkSerialize(greenChannel, redChannel, buf, sizeof(buf));
-  if(bufLen > 0)
-  {
-    Udp.beginPacket(IPAddress(0,0,0,0), 7493);
-    Udp.write(buf, bufLen);
-    Udp.endPacket();
-  }
-
-  tallyPreview = (greenChannel == c.cameraId);
-  tallyProgram = (redChannel == c.cameraId);
-}
-
-static bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel)
-{
-  bool ret = false;
-
-  int packetSize = Udp.parsePacket();
-  if(packetSize)
-  {
-    uint8_t buf[255];
-    int len = Udp.read(buf, 255);
-    uint16_t tmpGreen;
-    uint16_t tmpRed;
-    
-    if(peerNetworkDeSerialize(tmpGreen, tmpRed, buf, packetSize))
-    {
-      greenChannel = tmpGreen;
-      redChannel = tmpRed;
-
-      ret = true;
-    }
-  }
-  return ret;
-}
 
 static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
 {
@@ -255,9 +172,15 @@ static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *inter
   myState = RUNNING_PEERNETWORK;
 }
 
+static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel)
+{
+  tallyPreview = (greenChannel == c.cameraId);
+  tallyProgram = (redChannel == c.cameraId);
+}
 
 static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
 {
+  static bool prevCommFrozen = false;
   AtemSwitcher.runLoop();
 
   if(AtemSwitcher.isConnected())
@@ -277,19 +200,37 @@ static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
 
   if(!masterCommunicationFrozen)
   {
-    peerNetworkSend(c, AtemSwitcher.getPreviewInput(), AtemSwitcher.getProgramInput());
+    uint16_t greenChannel = AtemSwitcher.getPreviewInput();
+    uint16_t redChannel = AtemSwitcher.getProgramInput();
+
+    setTallySignals(c, greenChannel, redChannel);
+    peerNetworkSend(c, greenChannel, redChannel);
+  }
+
+  /*report state changes*/
+  if(masterCommunicationFrozen != prevCommFrozen)
+  {
+    if(masterCommunicationFrozen)
+    {
+      Serial.println("No connection to ATEM, trying to reconnect...");
+    }
+    else
+    {
+      Serial.println("Connection with ATEM established!");
+    }    
+
+    prevCommFrozen = masterCommunicationFrozen;
   }
 }
 
 static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
 {
-  uint16_t tmpA, tmpB;
+  static bool prevCommFrozen = false;
+  uint16_t greenChannel, redChannel;
 
-  if(peerNetworkReceive(tmpA, tmpB))
+  if(peerNetworkReceive(greenChannel, redChannel))
   {
-    Serial.println("Received master frame");
-    tallyPreview = (tmpA == c.cameraId);
-    tallyProgram = (tmpB == c.cameraId);
+    setTallySignals(c, greenChannel, redChannel);
     lastReceivedMasterMessageInTicks = cumulativeTickCounter;
     masterCommunicationFrozen = false;
   }
@@ -297,6 +238,21 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
   if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > 10)
   {
     masterCommunicationFrozen = true;
+  }
+
+  /*report state changes*/
+  if(masterCommunicationFrozen != prevCommFrozen)
+  {
+    if(masterCommunicationFrozen)
+    {
+      Serial.println("No message received from master, waiting...");
+    }
+    else
+    {
+      Serial.println("Message received from master!");      
+    }    
+
+    prevCommFrozen = masterCommunicationFrozen;
   }
 }
 
