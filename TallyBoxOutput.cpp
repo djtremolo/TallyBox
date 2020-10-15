@@ -6,7 +6,7 @@
 #define PIN_GREEN               D7
 #define PIN_RED                 D8
 
-#define DEFAULT_BRIGHTNESS      ((3 * MAX_BRIGHTNESS) / 4)
+#define DEFAULT_BRIGHTNESS      ((1 * MAX_BRIGHTNESS) / 2)
 
 typedef enum
 {
@@ -77,7 +77,7 @@ uint16_t getOutputBrightness(tallyBoxOutput_t ch)
   uint16_t percent = map(raw, 0, MAX_BRIGHTNESS, 0, 100);
 }
 
-void outputUpdate(bool dataIsValid, bool tallyPreview, bool tallyProgram)
+void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram)
 {
   if(dataIsValid)
   {
@@ -85,37 +85,44 @@ void outputUpdate(bool dataIsValid, bool tallyPreview, bool tallyProgram)
     setOutputState(OUTPUT_RED, tallyProgram);
   }
   
-  outputUpdate(dataIsValid);
+  outputUpdate(currentTick, dataIsValid);
 }
 
-void outputUpdate(bool dataIsValid)
+static void getWarningLevels(uint16_t currentTick, int32_t& greenLevel, int32_t& redLevel)
 {
-  static int32_t warningCounter=0;
-  static bool goingUp=true;
-  const int32_t wcStep = 4;
-  const int32_t wcMax = 700;  /*0...1023*/
-  const int32_t wcMin = 300;  /*0...1023*/
+  static uint16_t prevTick = 0;
+  static bool goingUp = true;
+  const int32_t wcMax = 480;  /*0...1023*/
+  const int32_t wcMin = 0;  /*0...1023*/
 
   /*keep warning sequence running in case it will be needed due to disconnection*/
+  /*check if this is a new round: currentTick goes from 0...319 in 10ms steps -> full round = 3.2 seconds*/
+  if(currentTick < prevTick)
+  {
+    /*reverse direction*/
+    goingUp = !goingUp;
+  }
+  prevTick = currentTick;
+
+  /*update warningCounter value*/
   if(goingUp)
   {
-    warningCounter += wcStep;
-    if(warningCounter >= wcMax)
-    {
-      warningCounter = wcMax;
-      goingUp = false;
-    }
+    /*green: increasing tick causes raising the output value
+      red:   inverted */
+    greenLevel = map(currentTick, 0, 319, wcMin, wcMax);
+    redLevel = map(currentTick, 0, 319, wcMax, wcMin);
   }
   else
   {
-    warningCounter -= wcStep;
-    if(warningCounter < wcMin)
-    {
-      warningCounter = wcMin;
-      goingUp = true;
-    }
+    /*green: increasing tick causes lowering the output value
+      red:   inverted */
+    greenLevel = map(currentTick, 0, 319, wcMax, wcMin);
+    redLevel = map(currentTick, 0, 319, wcMin, wcMax);
   }
+}
 
+void outputUpdate(uint16_t currentTick, bool dataIsValid)
+{
   /*control the light output for the user*/
   if(dataIsValid)
   {
@@ -124,9 +131,9 @@ void outputUpdate(bool dataIsValid)
   }
   else
   {
-    /*in case of disconnected master, run smooth alarm signal with both colors*/
-    analogWrite(PIN_GREEN, MAX_BRIGHTNESS-warningCounter);
-    analogWrite(PIN_RED, warningCounter);
+    int32_t wGreen, wRed;
+    getWarningLevels(currentTick, wGreen, wRed);
+    analogWrite(PIN_GREEN, wGreen);
+    analogWrite(PIN_RED, wRed);
   }
-
 }

@@ -72,9 +72,9 @@ static uint32_t getLedSequenceForRunState()
   return outMask;
 }
 
-static void updateLed()
+static void updateLed(uint16_t currentTick)
 {
-  uint16_t tick = getCurrentTick() / 10;
+  uint16_t tick = currentTick / 10;
   bool isRunning = (myState==RUNNING_ATEM || myState==RUNNING_PEERNETWORK);
   uint32_t seq = (isRunning ? getLedSequenceForRunState() : ledSequence[myState]);
   bool state = (seq >> tick) & 0x00000001;
@@ -348,9 +348,9 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   }
 
   /*update main output: Red&Green tally lights*/
-  outputUpdate(tallyDataIsValid(), tallyPreview, tallyProgram);
+  outputUpdate(currentTick, tallyDataIsValid(), tallyPreview, tallyProgram);
 
   /*update diagnostic led to indicate running state*/
-  updateLed();
+  updateLed(currentTick);
 }
 
