@@ -7,6 +7,7 @@
 #include "TallyBoxOutput.hpp"
 #include "TallyBoxPeerNetwork.hpp"
 #include "TallyBoxInfra.hpp"
+#include "TallyBoxTerminal.hpp"
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
 #define SEQUENCE_DOUBLE_SHORT       0x00000005
@@ -125,6 +126,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       WiFi.mode(WIFI_STA);
       OTAInitialize();
 
+      tallyBoxTerminalInitialize();
       break;
 
     default:
@@ -148,11 +150,7 @@ static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalStat
 
     case 1:
       AtemSwitcher.runLoop();
-      if(!AtemSwitcher.isConnected())
-      {
-        Serial.print(".");
-      }
-      else
+      if(AtemSwitcher.isConnected())
       {
         internalState[CONNECTING_TO_ATEM_HOST] = 2;
       }          
@@ -352,5 +350,8 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   /*update diagnostic led to indicate running state*/
   updateLed(currentTick);
+
+  /*run terminal here*/
+  tallyBoxTerminalUpdate();
 }
 

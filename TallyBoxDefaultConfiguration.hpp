@@ -1,5 +1,9 @@
+#if 1
 #define TALLYBOX_CONFIGURATION_DEFAULT_SSID             "myTallyNetSSID"        /*customize*/
 #define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           ""                      /*customize*/
+#else
+#include "myPrivateCredentials.hpp"
+#endif
 
 #define TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE0     192
 #define TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE1     168

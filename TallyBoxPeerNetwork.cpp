@@ -3,6 +3,7 @@
 #include <WiFiUdp.h>
 #include "TallyBoxPeerNetwork.hpp"
 #include "TallyBoxInfra.hpp"
+#include "TallyBoxOutput.hpp"
 #include <Arduino_CRC32.h>
 
 #define PEERNETWORK_PROTOCOL_VERSION_U8                  1
@@ -105,7 +106,7 @@ static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf,
   uint16_t ret = 0;
   const uint16_t headerSize = 9;
   const uint16_t footerSize = 4;
-  const uint16_t msgSize = headerSize + 2 + 2 + footerSize;
+  const uint16_t msgSize = headerSize + 13 +  footerSize;
   Arduino_CRC32 crc32;
 
   if(maxLen >= msgSize)
@@ -119,9 +120,22 @@ static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf,
     putU16(&p, PEERNETWORK_TALLY_BROADCAST_IDENTIFIER_U16);
     putU16(&p, myTick);
 
-    /*payload*/
+    /*payload: tally signals*/
     putU16(&p, grn);
     putU16(&p, red);
+
+    /*payload: brightness setting and visualization*/
+    uint8_t bsmEnabled;
+    uint16_t bsmCounter;
+    uint16_t bsmChannel;
+    uint16_t greenBrightness;
+    uint16_t redBrightness;
+    getOutputTxData(bsmEnabled, bsmCounter, bsmChannel, greenBrightness, redBrightness);
+    putU8(&p, bsmEnabled);
+    putU16(&p, bsmCounter);
+    putU16(&p, bsmChannel);
+    putU16(&p, greenBrightness);
+    putU16(&p, redBrightness);
 
     /*crc*/
     uint16_t lenWithoutCrc = getBufLength(buf, p);
@@ -140,7 +154,7 @@ static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, u
   bool ret = false;
   const uint16_t headerSize = 9;
   const uint16_t footerSize = 4;
-  const uint16_t msgSize = headerSize + 2 + 2 + footerSize;
+  const uint16_t msgSize = headerSize + 13 + footerSize;
   Arduino_CRC32 crc32;
   uint16_t masterTick;
   
@@ -161,6 +175,13 @@ static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, u
           grn = getU16(&p);
           red = getU16(&p);
 
+          /*payload: brightness setting and visualization*/
+          uint8_t bsmEnabled = getU8(&p);
+          uint16_t bsmCounter = getU16(&p);
+          uint16_t bsmChannel = getU16(&p);
+          uint16_t greenBrightness = getU16(&p);
+          uint16_t redBrightness = getU16(&p);
+          putOutputRxData(bsmEnabled, bsmCounter, bsmChannel, greenBrightness, redBrightness);
 
           /*crc check*/
           uint16_t lenWithoutCrc = getBufLength(buf, p);
@@ -180,7 +201,6 @@ static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, uint8_t *buf, u
             Serial.print(receivedCrc, HEX);
             Serial.print(", Calculated: 0x");
             Serial.println(calculatedCrc, HEX);
-
           }
         }
         else

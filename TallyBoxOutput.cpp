@@ -8,25 +8,54 @@
 
 #define DEFAULT_BRIGHTNESS      ((1 * MAX_BRIGHTNESS) / 2)
 
-typedef enum
-{
-    OUTPUT_GREEN = 0x00000001,
-    OUTPUT_RED = 0x00000002
-} tallyBoxOutput_t;
-
-
 static bool myGreenState = false;
 static bool myRedState = false;
+static bool brightnessSettingModeEnabled = false;
+static uint16_t brightnessSettingModeCounter = 0;
+static tallyBoxOutput_t brightnessSettingModeChannel;
 
 static uint16_t myGreenBrightnessValue = DEFAULT_BRIGHTNESS;
 static uint16_t myRedBrightnessValue = DEFAULT_BRIGHTNESS;
 
 void setOutputState(tallyBoxOutput_t ch, bool outputState);
 bool getOutputState(tallyBoxOutput_t ch);
+void setOutputBrightness(uint16_t percent);
 
-void setOutputBrightness(uint16_t percent, tallyBoxOutput_t ch);
-uint16_t getOutputBrightness(tallyBoxOutput_t ch);
+void getOutputTxData(uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness)
+{
+  /*PeerNetwork master: sending out data to slaves*/
+  bsmEnabled = (uint8_t)brightnessSettingModeEnabled;
+  bsmCounter = brightnessSettingModeCounter;  /*10 us ticks -> 1000 = 10 seconds*/
+  bsmChannel = (uint16_t)brightnessSettingModeChannel;
+  greenBrightness = myGreenBrightnessValue;
+  redBrightness = myRedBrightnessValue;
+}
 
+void putOutputRxData(uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness)
+{
+  /*PeerNetwork slave: receiving data from master*/
+  brightnessSettingModeEnabled = (bool)bsmEnabled;
+  brightnessSettingModeCounter = bsmCounter;  /*10 us ticks -> 1000 = 10 seconds*/
+  brightnessSettingModeChannel = (tallyBoxOutput_t)bsmChannel;
+  myGreenBrightnessValue = greenBrightness;
+  myRedBrightnessValue = redBrightness;
+}
+
+void setBrightnessSettingMode(tallyBoxOutput_t ch, bool enable)
+{
+  if(enable)
+  {
+    brightnessSettingModeEnabled = true;
+    brightnessSettingModeCounter = 1000;  /*10 us ticks -> 1000 = 10 seconds*/
+    brightnessSettingModeChannel = ch;
+  }
+  else
+  {
+    brightnessSettingModeEnabled = false;
+    brightnessSettingModeCounter = 0;
+    brightnessSettingModeChannel = OUTPUT_NONE;
+  }
+}
 
 void setOutputState(tallyBoxOutput_t ch, bool outputState)
 {
@@ -121,8 +150,60 @@ static void getWarningLevels(uint16_t currentTick, int32_t& greenLevel, int32_t&
   }
 }
 
+bool handleBrightnessSettingMode()
+{
+  bool skipRealOutput = false;
+  
+  if(brightnessSettingModeEnabled)
+  {
+    if(brightnessSettingModeCounter > 0)
+    {
+      uint16_t testG = 0;
+      uint16_t testR = 0;
+
+      brightnessSettingModeCounter--;
+
+      /*mask the channel that is not being set right now*/
+      switch(brightnessSettingModeChannel)
+      {
+        case OUTPUT_NONE:
+          break;
+        case OUTPUT_GREEN:
+          testG = myGreenBrightnessValue;
+          break;
+        case OUTPUT_RED:
+          testR = myRedBrightnessValue;
+          break;
+        case OUTPUT_LINKED:
+          testG = myGreenBrightnessValue;
+          testR = myRedBrightnessValue;
+          break;
+      }
+
+      if(brightnessSettingModeChannel == OUTPUT_GREEN) testR = 0;
+      if(brightnessSettingModeChannel == OUTPUT_RED) testG = 0;
+      
+      analogWrite(PIN_GREEN, testG);
+      analogWrite(PIN_RED, testR);
+      
+      skipRealOutput = true;  /*force calling function to return after this*/
+    }
+    else
+    {
+      brightnessSettingModeEnabled = false;
+    }
+  } 
+  return skipRealOutput;
+}
+
 void outputUpdate(uint16_t currentTick, bool dataIsValid)
 {
+  if(handleBrightnessSettingMode())
+  {
+    /*we are in the mode that visualizes the brightness setting*/
+    return;
+  }
+ 
   /*control the light output for the user*/
   if(dataIsValid)
   {
