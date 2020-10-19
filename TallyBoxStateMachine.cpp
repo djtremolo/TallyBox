@@ -8,6 +8,7 @@
 #include "TallyBoxPeerNetwork.hpp"
 #include "TallyBoxInfra.hpp"
 #include "TallyBoxTerminal.hpp"
+#include "TallyBoxWebServer.hpp"
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
 #define SEQUENCE_DOUBLE_SHORT       0x00000005
@@ -127,6 +128,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       OTAInitialize();
 
       tallyBoxTerminalInitialize();
+      tallyBoxWebServerInitialize();
       break;
 
     default:
@@ -353,5 +355,9 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   /*run terminal here*/
   tallyBoxTerminalUpdate();
+
+  /*run webserver here*/
+  tallyBoxWebServerUpdate();
+
 }
 

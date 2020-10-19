@@ -4,7 +4,7 @@
 #include <Arduino_CRC32.h>
 #include "TallyBoxOutput.hpp"
 
-WiFiServer server(7493);
+static WiFiServer server(7493);
 //WiFiClient client;
 static bool initialized = false;
 

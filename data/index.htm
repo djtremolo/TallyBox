@@ -1,0 +1,73 @@
+<html>
+  <head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>TallyBox</title>
+    <style>
+      body {
+        background-color: #cccccc;
+        font-family: Arial, Helvetica, Sans-Serif;
+        color: #000088;
+        width: 100%;
+        height: 100%;
+      }
+      div.container {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TallyBox Configuration</h1>
+    <div class='container'>
+      <form action='/' method='post'>
+        <label>Wifi SSID</label><br />
+        <input
+          type='text'
+          name='wifiSSID'
+          value='myTallyNetSSID'
+          size='15'
+          maxlength='20'
+        /><br />
+        <label>Wifi Password</label><br />
+        <input
+          type='password'
+          name='wifiPassword'
+          value='myTallyNetPassword'
+          size='15'
+          maxlength='20'
+        /><br />
+        <label>Host IP</label><br />
+        <input
+          type='text'
+          name='hostIp'
+          value='192.168.1.10'
+          size='15'
+          maxlength='15'
+        /><br />
+        <label>Green Brightness</label><br />
+        <input
+          type='range'
+          name='greenBrightness'
+          value='50'
+          min='0'
+          max='100'
+        /><br />
+        <label>Red Brightness</label><br />
+        <input
+          type='range'
+          name='redBrightness'
+          value='50'
+          min='0'
+          max='100'
+        /><br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='submit'
+          value='Store parameters'
+          id='jepa'
+        /><br />
+      </form>
+    </div>
+  </body>
+</html>
