@@ -22,4 +22,5 @@ void setup()
 void loop()
 {
   tallyBoxStateMachineUpdate(myConf);
+  delay(1);
 }

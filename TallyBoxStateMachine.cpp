@@ -270,9 +270,37 @@ static bool tallyDataIsValid()
   return ret;
 }
 
+#define CPU_TIME_DEBUG                  true
+
+#if CPU_TIME_DEBUG
+#define DIAG_LED_LOOP_FULL              D0
+#define DIAG_LED_LOOP_OTA               D1
+#define DIAG_LED_LOOP_STATEMACHINE      D3
+#define DIAG_LED_LOOP_TALLY_OUTPUT      D4
+#define DIAG_LED_LOOP_WEB_SERVER        D5
+
+#define LED_ON                          HIGH
+#define LED_OFF                         LOW
+
+#define DEBUG_PULSE_START(x)            digitalWrite((x), LED_ON);
+#define DEBUG_PULSE_STOP(x)             digitalWrite((x), LED_OFF);
+
+#else
+#define DEBUG_PULSE_START(x)
+#define DEBUG_PULSE_STOP(x)
+#endif
+
 void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 {
   randomSeed(analogRead(5));  /*random needed by ATEM library*/
+
+#if CPU_TIME_DEBUG
+  pinMode(DIAG_LED_LOOP_FULL, OUTPUT);
+  pinMode(DIAG_LED_LOOP_STATEMACHINE, OUTPUT);
+  pinMode(DIAG_LED_LOOP_OTA, OUTPUT);
+  pinMode(DIAG_LED_LOOP_TALLY_OUTPUT, OUTPUT);
+  pinMode(DIAG_LED_LOOP_WEB_SERVER, OUTPUT);
+#endif
 
   isMaster = (c.cameraId == 1); /*ID 1 behaves as master: connects to ATEM and forwards the information via PeerNetwork*/
 }
@@ -285,8 +313,13 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   uint16_t currentTick = getCurrentTick();  /*0...319,0...319...*/
   bool printStateName = false;
 
+  DEBUG_PULSE_START(DIAG_LED_LOOP_FU
+  LL);
+
   /*call over-the-air update mechanism from here to provide faster speed*/
+  DEBUG_PULSE_START(DIAG_LED_LOOP_OTA);
   OTAUpdate();
+  DEBUG_PULSE_STOP(DIAG_LED_LOOP_OTA);
 
   /*only run state machine once per tick*/
   if(currentTick == prevTick)
@@ -310,6 +343,7 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   prevState = myState;
 
   /*process functionality*/
+  DEBUG_PULSE_START(DIAG_LED_LOOP_STATEMACHINE);
   switch(myState)
   {
     case CONNECTING_TO_WIFI:
@@ -346,9 +380,12 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
       Serial.println("*** INVALID STATE ***");
       break;
   }
+  DEBUG_PULSE_STOP(DIAG_LED_LOOP_STATEMACHINE);
 
   /*update main output: Red&Green tally lights*/
+  DEBUG_PULSE_START(DIAG_LED_LOOP_TALLY_OUTPUT);
   outputUpdate(currentTick, tallyDataIsValid(), tallyPreview, tallyProgram);
+  DEBUG_PULSE_STOP(DIAG_LED_LOOP_TALLY_OUTPUT);
 
   /*update diagnostic led to indicate running state*/
   updateLed(currentTick);
@@ -357,7 +394,10 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   tallyBoxTerminalUpdate();
 
   /*run webserver here*/
+  DEBUG_PULSE_START(DIAG_LED_LOOP_WEB_SERVER);
   tallyBoxWebServerUpdate();
+  DEBUG_PULSE_STOP(DIAG_LED_LOOP_WEB_SERVER);
 
+  DEBUG_PULSE_STOP(DIAG_LED_LOOP_FULL);
 }
 
