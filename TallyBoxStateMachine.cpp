@@ -313,8 +313,7 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   uint16_t currentTick = getCurrentTick();  /*0...319,0...319...*/
   bool printStateName = false;
 
-  DEBUG_PULSE_START(DIAG_LED_LOOP_FU
-  LL);
+  DEBUG_PULSE_START(DIAG_LED_LOOP_FULL);
 
   /*call over-the-air update mechanism from here to provide faster speed*/
   DEBUG_PULSE_START(DIAG_LED_LOOP_OTA);

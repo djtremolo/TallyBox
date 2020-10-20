@@ -224,9 +224,30 @@ void tallyBoxWebServerInitialize()
     server.send(200, "text/plain", "");
   }, handleFileUpload);
 
+  server.on("/index.htm", HTTP_GET, []() {
+    Serial.println("nimetty file, get");
+    if (!handleFileRead(server.uri())) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/index.htm", HTTP_POST, []() {
+    Serial.println("nimetty file, post");
+
+
+    Serial.println("HTTP_POST: '"+ server.uri()+ "'");
+
+
+
+    if (!handleFileRead(server.uri())) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
   //called when the url is not defined here
   //use it to load content from SPIFFS
   server.onNotFound([]() {
+    Serial.println("not found, trying from FS");
     if (!handleFileRead(server.uri())) {
       server.send(404, "text/plain", "FileNotFound");
     }
