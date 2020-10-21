@@ -39,6 +39,10 @@ String getContentType(String filename) {
     return "text/html";
   } else if (filename.endsWith(".html")) {
     return "text/html";
+  } else if (filename.endsWith(".json")) {
+    return "application/json";
+  } else if (filename.endsWith(".jsn")) {
+    return "text/plain";
   } else if (filename.endsWith(".css")) {
     return "text/css";
   } else if (filename.endsWith(".js")) {
@@ -224,26 +228,33 @@ void tallyBoxWebServerInitialize()
     server.send(200, "text/plain", "");
   }, handleFileUpload);
 
+#if 0
   server.on("/index.htm", HTTP_GET, []() {
-    Serial.println("nimetty file, get");
     if (!handleFileRead(server.uri())) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });
 
   server.on("/index.htm", HTTP_POST, []() {
-    Serial.println("nimetty file, post");
-
-
-    Serial.println("HTTP_POST: '"+ server.uri()+ "'");
-
-
-
     if (!handleFileRead(server.uri())) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });
 
+
+  server.on("/config_network.json", HTTP_GET, []() {
+    if (!handleFileRead(server.uri())) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/config_network.json", HTTP_POST, []() {
+    if (!handleFileRead(server.uri())) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+#endif
   //called when the url is not defined here
   //use it to load content from SPIFFS
   server.onNotFound([]() {
