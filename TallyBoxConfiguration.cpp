@@ -174,7 +174,6 @@ bool configurationGet(T& c)
 
   if(f.size() > 0)
   {
-    Serial.printf("configurationGet(): size=%u\r\n", f.size());
     char buf[512];
 
     if(f.read((uint8_t*)buf, sizeof(buf)) > 0)
@@ -185,7 +184,7 @@ bool configurationGet(T& c)
       }
       else
       {
-        Serial.println("json deserialization failed");
+        Serial.println("configurationGet(): json deserialization failed");
       }
     }
     else
@@ -331,7 +330,6 @@ void handleConfigurationWrite(T& c)
 {
 #if TALLYBOX_PROGRAM_WRITE_DEFAULTS  
   const char* fName = getFileName(c);
-  Serial.printf("TALLYBOX_PROGRAM_WRITE_DEFAULTS enabled\r\nhandleConfigurationWrite('%s')\r\n", fName);
 
   setDefaults(c);
 
@@ -371,25 +369,6 @@ void handleConfigurationRead(T& c)
   const char* fName = getFileName(c);
 
   configurationGet(c);
-
-  Serial.println("**************");
-  char buf[512];
-  Serial.println("before crc="+String(c.checkSum));
-
-  serializeToByteArray(c, buf, sizeof(buf));
-  c.checkSum = 0x12345678;
-  if(!deSerializeFromJson(c, buf))
-  {
-    Serial.println("json deserialization failed");
-  }
-  else
-  {
-    Serial.println("deserialized, crc="+String(c.checkSum));
-  }
-  Serial.println("**************");
-
-
-
 
   if(validateConfiguration(c))
   {
