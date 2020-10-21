@@ -1,5 +1,6 @@
 #include "TallyBoxConfiguration.hpp"
 #include "TallyBoxOutput.hpp"   /*for default brightness*/
+#include "Arduino.h"
 #include <Arduino_CRC32.h>
 #include "LittleFS.h"
 #include <ArduinoJson.h>
@@ -132,7 +133,8 @@ bool validateConfiguration(T& c)
   {
     if(c.sizeOfConfiguration == sizeof(T))
     {
-      if(c.checkSum == calcChecksum(c))
+      /*check CRC but allow manual editing by setting the crc to a magic value*/
+      if((c.checkSum == calcChecksum(c)) || (c.checkSum == 12345678))
       {
         ret = true;
       }
@@ -328,7 +330,6 @@ bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf)
 template <typename T>
 void handleConfigurationWrite(T& c)
 {
-#if TALLYBOX_PROGRAM_WRITE_DEFAULTS  
   const char* fName = getFileName(c);
 
   setDefaults(c);
@@ -359,7 +360,6 @@ void handleConfigurationWrite(T& c)
   {
     Serial.println("<not written as the existing content was identical>");
   }  
-#endif
 }
 
 
@@ -376,21 +376,65 @@ void handleConfigurationRead(T& c)
   }
   else
   {
-    Serial.printf("Loading configuration '%s' failed, cannot continue!\r\n", fName);
+    #if T == tallyBoxUserConfig_t
+    Serial.printf("Loading configuration '%s' failed. Trying anyway.\r\n", fName);
+    #else
+    Serial.printf("Loading configuration '%s' failed. Cannot continue without networking settings.\r\n", fName);
     while(1);
+    #endif
   }
 }
 
+void loadDefaults(tallyBoxConfig_t& c)
+{
+  handleConfigurationWrite(c.network);
+  handleConfigurationWrite(c.user);
+}
+
+#define BUTTON_ACTIVE   LOW
 
 void tallyBoxConfiguration(tallyBoxConfig_t& c)
 {
-  /*Note: both functions are blocking. If the writing or reading fails, the program stops and will wait for reset*/
+  /*give user the possibility to interrupt and load the default configuration*/
+  Serial.print("Press FLASH button for default configuration....");
+  delay(5000);
+  if(digitalRead(0) == BUTTON_ACTIVE)
+  {
+    uint32_t counter = 0;
+    Serial.println("Ok, keep the button active for more than 10 seconds");
+    while(digitalRead(0) == BUTTON_ACTIVE)
+    {
+      digitalWrite(LED_BUILTIN, (counter % 2));
+      Serial.print("-");      
+      if(++counter > 20)
+      {
+        break;
+      }
+      delay(500);
+    }
+    /*still active after 10s?*/
+    if(digitalRead(0) == BUTTON_ACTIVE)
+    {
+      Serial.println("Using default configuration!");
+      loadDefaults(c);
+    }
+    else
+    {
+      Serial.println("\r\nCancelled, going forward with stored configuration - if any.");
+    }
+  }
+  else
+  {
+    Serial.println("\r\nProceeding to normal boot.");
+  }
+
+  #if TALLYBOX_PROGRAM_FORCE_WRITE_DEFAULTS
+  loadDefaults(c);
+  #endif
 
   /*handle network configuration part*/
-  handleConfigurationWrite(c.network);
   handleConfigurationRead(c.network);
 
   /*handle user configuration part*/
-  handleConfigurationWrite(c.user);
   handleConfigurationRead(c.user);
 }

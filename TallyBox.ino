@@ -11,8 +11,9 @@ void setup()
 { 
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(0, INPUT);
 
-  Serial.println("\n- - - - - - - -\nTallyBox version "+String(TALLYBOX_FIRMWARE_VERSION)+".\n- - - - - - - -\n");
+  Serial.println("\n- - - - - - - -\nTallyBox version "+String(TALLYBOX_FIRMWARE_VERSION)+".\n- - - - - - - -\nIO0="+String(digitalRead(0)));
 
   filesystem->begin();
 
