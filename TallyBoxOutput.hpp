@@ -2,6 +2,9 @@
 #define __TALLYBOXOUTPUT_HPP__
 #include "Arduino.h"
 
+#define MAX_BRIGHTNESS          1023
+#define DEFAULT_BRIGHTNESS      ((1 * MAX_BRIGHTNESS) / 2)
+
 typedef enum
 {
   OUTPUT_NONE,    /*used by terminal interface*/

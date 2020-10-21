@@ -232,7 +232,6 @@ void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redCha
   uint16_t bufLen = peerNetworkSerialize(greenChannel, redChannel, buf, sizeof(buf));
   if(bufLen > 0)
   {
-
     Udp.beginPacket(IPAddress(0,0,0,0), 7493);
     Udp.write(buf, bufLen);
     Udp.endPacket();

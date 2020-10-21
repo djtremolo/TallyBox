@@ -1,14 +1,18 @@
 #include "TallyBoxConfiguration.hpp"
 #include "TallyBoxStateMachine.hpp"
+#include "LittleFS.h"
 
 #define TALLYBOX_FIRMWARE_VERSION               "0.1.0"
 
 tallyBoxConfig_t myConf;
+static FS* filesystem = &LittleFS;
 
 void setup() 
 { 
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
+
+  //filesystem->begin();
 
   Serial.println("\n- - - - - - - -\nTallyBox version "+String(TALLYBOX_FIRMWARE_VERSION)+".\n- - - - - - - -\n");
 

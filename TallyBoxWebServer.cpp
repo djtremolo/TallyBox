@@ -6,7 +6,7 @@
 #include <LittleFS.h>
 #include "TallyBoxWebServer.hpp"
 
-FS* filesystem = &LittleFS;
+static FS* filesystem = &LittleFS;
 
 #define DBG_OUTPUT_PORT Serial
 
@@ -185,7 +185,7 @@ void tallyBoxWebServerInitialize()
 {
   initialized = true;
 
-  filesystem->begin();
+  //filesystem->begin();
 
   {
     Dir dir = filesystem->openDir("/");

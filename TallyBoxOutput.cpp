@@ -1,12 +1,8 @@
 #include "TallyBoxOutput.hpp"
 #include "Arduino.h"
 
-#define MAX_BRIGHTNESS          1023
-
 #define PIN_GREEN               D7
 #define PIN_RED                 D8
-
-#define DEFAULT_BRIGHTNESS      ((1 * MAX_BRIGHTNESS) / 2)
 
 static bool myGreenState = false;
 static bool myRedState = false;

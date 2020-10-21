@@ -9,6 +9,9 @@
 #include "TallyBoxInfra.hpp"
 #include "TallyBoxTerminal.hpp"
 #include "TallyBoxWebServer.hpp"
+#include "LittleFS.h"
+
+static FS* filesystem = &LittleFS;
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
 #define SEQUENCE_DOUBLE_SHORT       0x00000005
@@ -46,12 +49,12 @@ const uint32_t ledSequence[STATE_MAX] =
 static uint32_t getLedSequenceForRunState();
 static void updateLed(uint16_t tick);
 static bool tallyDataIsValid();
-static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
-static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState);
-static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalState);
-static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *internalState);
-static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState);
-static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState);
+static void setTallySignals(tallyBoxNetworkConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
+static void stateConnectingToWifi(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
+static void stateConnectingToAtemHost(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
+static void stateConnectingToPeerNetworkHost(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
+static void stateRunningAtem(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
+static void stateRunningPeerNetwork(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
 /*************************************************************/
 
 
@@ -92,7 +95,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
   {
     case 0: /*init wifi device*/
       Serial.print("Connecting to WiFi"); 
-      WiFi.begin(c.wifiSSID, c.wifiPasswd);
+      WiFi.begin(c.network.wifiSSID, c.network.wifiPasswd);
       internalState[CONNECTING_TO_WIFI] = 1;
       break;
 
@@ -143,7 +146,7 @@ static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalStat
   switch(internalState[CONNECTING_TO_ATEM_HOST])
   {
     case 0:
-      AtemSwitcher.begin(IPAddress(c.hostAddressU32));
+      AtemSwitcher.begin(IPAddress(c.network.hostAddressU32));
       AtemSwitcher.serialOutput(0x80);
       AtemSwitcher.connect();
       internalState[CONNECTING_TO_ATEM_HOST] = 1;
@@ -178,8 +181,8 @@ static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *inter
 
 static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel)
 {
-  tallyPreview = (greenChannel == c.cameraId);
-  tallyProgram = (redChannel == c.cameraId);
+  tallyPreview = (greenChannel == c.user.cameraId);
+  tallyProgram = (redChannel == c.user.cameraId);
 }
 
 static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
@@ -294,6 +297,8 @@ void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 {
   randomSeed(analogRead(5));  /*random needed by ATEM library*/
 
+  filesystem->begin();
+
 #if CPU_TIME_DEBUG
   pinMode(DIAG_LED_LOOP_FULL, OUTPUT);
   pinMode(DIAG_LED_LOOP_STATEMACHINE, OUTPUT);
@@ -302,7 +307,7 @@ void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
   pinMode(DIAG_LED_LOOP_WEB_SERVER, OUTPUT);
 #endif
 
-  isMaster = (c.cameraId == 1); /*ID 1 behaves as master: connects to ATEM and forwards the information via PeerNetwork*/
+  isMaster = c.user.isMaster;
 }
 
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState)
