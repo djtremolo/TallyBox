@@ -9,9 +9,7 @@
 #include "TallyBoxInfra.hpp"
 #include "TallyBoxTerminal.hpp"
 #include "TallyBoxWebServer.hpp"
-#include "LittleFS.h"
 
-static FS* filesystem = &LittleFS;
 
 #define SEQUENCE_SINGLE_SHORT       0x00000001
 #define SEQUENCE_DOUBLE_SHORT       0x00000005
@@ -296,8 +294,6 @@ static bool tallyDataIsValid()
 void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 {
   randomSeed(analogRead(5));  /*random needed by ATEM library*/
-
-  filesystem->begin();
 
 #if CPU_TIME_DEBUG
   pinMode(DIAG_LED_LOOP_FULL, OUTPUT);

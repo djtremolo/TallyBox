@@ -285,8 +285,6 @@ void tallyBoxConfiguration(tallyBoxConfig_t& c)
 {
   /*Note: both functions are blocking. If the writing or reading fails, the program stops and will wait for reset*/
 
-  filesystem->begin();
-
   Serial.println("************ NETWORK CONFIGURATION ****");
 
   /*handle network configuration part*/
