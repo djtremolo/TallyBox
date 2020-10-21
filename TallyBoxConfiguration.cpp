@@ -2,11 +2,12 @@
 #include "TallyBoxOutput.hpp"   /*for default brightness*/
 #include <Arduino_CRC32.h>
 #include "LittleFS.h"
+#include <ArduinoJson.h>
 
 static FS* filesystem = &LittleFS;
 
-const char fileNameNetworkConfig[] = "network.cfg";
-const char fileNameUserConfig[] = "user.cfg";
+const char fileNameNetworkConfig[] = "config_network.json";
+const char fileNameUserConfig[] = "config_user.json";
 
 void setDefaults(tallyBoxNetworkConfig_t& c);
 void setDefaults(tallyBoxUserConfig_t& c);
@@ -14,6 +15,11 @@ void dumpConf(String confName, tallyBoxNetworkConfig_t& c);
 void dumpConf(String confName, tallyBoxUserConfig_t& c);
 const char* getFileName(tallyBoxNetworkConfig_t& c);
 const char* getFileName(tallyBoxUserConfig_t& c);
+void serializeToByteArray(tallyBoxNetworkConfig_t& c, char* jsonBuf, size_t maxBytes);
+void serializeToByteArray(tallyBoxUserConfig_t& c, char* jsonBuf, size_t maxBytes);
+bool deSerializeFromJson(tallyBoxNetworkConfig_t& c, char* jsonBuf);
+bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf);
+
 
 template <typename T>
 uint32_t calcChecksum(T& c);
@@ -169,10 +175,18 @@ bool configurationGet(T& c)
   if(f.size() > 0)
   {
     Serial.printf("configurationGet(): size=%u\r\n", f.size());
+    char buf[512];
 
-    if(f.read((uint8_t*)&c, sizeof(T)) == sizeof(T))
+    if(f.read((uint8_t*)buf, sizeof(buf)) > 0)
     {
-      ret = validateConfiguration(c);
+      if(deSerializeFromJson(c, buf))
+      {
+        ret = validateConfiguration(c);
+      }
+      else
+      {
+        Serial.println("json deserialization failed");
+      }
     }
     else
     {
@@ -189,6 +203,7 @@ bool configurationGet(T& c)
   return ret;
 }
 
+
 template <typename T>
 bool configurationPut(T& c)
 {
@@ -198,8 +213,13 @@ bool configurationPut(T& c)
   if(validateConfiguration(c))
   {
     File f = filesystem->open(fileName, "w");
+    char bufToBeStored[512];
 
-    if(f.write((uint8_t*)&c, sizeof(T)) == sizeof(T))
+    serializeToByteArray(c, bufToBeStored, sizeof(bufToBeStored));
+
+    size_t len = strlen(bufToBeStored);
+
+    if(f.write(bufToBeStored, len) == len)
     {
       ret = true;
     }
@@ -210,6 +230,101 @@ bool configurationPut(T& c)
   }
   return ret;
 }
+
+
+void serializeToByteArray(tallyBoxNetworkConfig_t& c, char* jsonBuf, size_t maxBytes)
+{
+  StaticJsonDocument<512> doc;
+  
+  doc["sizeOfConfiguration"] = c.sizeOfConfiguration;
+  doc["versionOfConfiguration"] = c.versionOfConfiguration;
+  doc["wifiSSID"] = String(c.wifiSSID);
+  doc["wifiPasswd"] = String(c.wifiPasswd);
+  doc["hostAddressU32"] = c.hostAddressU32;
+  doc["ownAddressU32"] = c.ownAddressU32;
+  doc["hasStaticIp"] = c.hasStaticIp;
+  doc["mdnsHostName"] = String(c.mdnsHostName);
+  doc["checkSum"] = c.checkSum;
+
+  serializeJsonPretty(doc, jsonBuf, maxBytes);
+
+  Serial.println("json='"+String(jsonBuf)+"'");
+
+}
+
+void serializeToByteArray(tallyBoxUserConfig_t& c, char* jsonBuf, size_t maxBytes)
+{
+  StaticJsonDocument<512> doc;
+  
+  doc["sizeOfConfiguration"] = c.sizeOfConfiguration;
+  doc["versionOfConfiguration"] = c.versionOfConfiguration;
+  doc["cameraId"] = c.cameraId;
+  doc["greenBrightnessPercent"] = c.greenBrightnessPercent;
+  doc["redBrightnessPercent"] = c.redBrightnessPercent;
+  doc["isMaster"] = c.isMaster;
+  doc["checkSum"] = c.checkSum;
+
+  serializeJsonPretty(doc, jsonBuf, maxBytes);
+
+  Serial.println("json='"+String(jsonBuf)+"'");
+}
+
+
+
+bool deSerializeFromJson(tallyBoxNetworkConfig_t& c, char* jsonBuf)
+{
+  bool ret = false;
+  StaticJsonDocument<512> doc;
+
+  DeserializationError error = deserializeJson(doc, jsonBuf);
+
+  if(error == DeserializationError::Ok)
+  {
+    c.sizeOfConfiguration = doc["sizeOfConfiguration"];
+    c.versionOfConfiguration = doc["versionOfConfiguration"];
+    
+    String ssid = doc["wifiSSID"];
+    strncpy(c.wifiSSID, ssid.c_str(), CONF_NETWORK_NAME_LEN_SSID);
+    String pwd = doc["wifiPasswd"];
+    strncpy(c.wifiPasswd, pwd.c_str(), CONF_NETWORK_NAME_LEN_PASSWD);
+    c.hostAddressU32 = doc["hostAddressU32"];
+    c.ownAddressU32 = doc["ownAddressU32"];
+    c.hasStaticIp = doc["hasStaticIp"];
+    String mdnshost = doc["mdnsHostName"];
+    strncpy(c.mdnsHostName, mdnshost.c_str(), CONF_NETWORK_NAME_LEN_MDNS_NAME);
+    c.checkSum = doc["checkSum"];
+
+    ret = true;
+  }
+
+  return ret;
+}
+
+bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf)
+{
+  bool ret = false;
+  StaticJsonDocument<512> doc;
+
+  DeserializationError error = deserializeJson(doc, jsonBuf);
+
+  if(error == DeserializationError::Ok)
+  {
+    c.sizeOfConfiguration = doc["sizeOfConfiguration"];
+    c.versionOfConfiguration = doc["versionOfConfiguration"];
+
+    c.cameraId = doc["cameraId"];
+    c.greenBrightnessPercent = doc["greenBrightnessPercent"];
+    c.redBrightnessPercent = doc["redBrightnessPercent"];
+    c.isMaster = doc["isMaster"];
+    
+    c.checkSum = doc["checkSum"];
+
+    ret = true;
+  }
+
+  return ret;
+}
+
 
 template <typename T>
 void handleConfigurationWrite(T& c)
@@ -256,6 +371,26 @@ void handleConfigurationRead(T& c)
   const char* fName = getFileName(c);
 
   configurationGet(c);
+
+  Serial.println("**************");
+  char buf[512];
+  Serial.println("before crc="+String(c.checkSum));
+
+  serializeToByteArray(c, buf, sizeof(buf));
+  c.checkSum = 0x12345678;
+  if(!deSerializeFromJson(c, buf))
+  {
+    Serial.println("json deserialization failed");
+  }
+  else
+  {
+    Serial.println("deserialized, crc="+String(c.checkSum));
+  }
+  Serial.println("**************");
+
+
+
+
   if(validateConfiguration(c))
   {
     dumpConf(fName, c);
