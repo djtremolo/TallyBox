@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #define TALLYBOX_CONFIGURATION_DEFAULT_SSID             "myTallyNetSSID"        /*customize*/
 #define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           ""                      /*customize*/
 #else

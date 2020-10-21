@@ -8,7 +8,6 @@ static FS* filesystem = &LittleFS;
 const char fileNameNetworkConfig[] = "network.cfg";
 const char fileNameUserConfig[] = "user.cfg";
 
-
 void setDefaults(tallyBoxNetworkConfig_t& c);
 void setDefaults(tallyBoxUserConfig_t& c);
 void dumpConf(String confName, tallyBoxNetworkConfig_t& c);
@@ -164,7 +163,6 @@ bool configurationGet(T& c)
 {
   bool ret = false;
   const char* fileName = getFileName(c);
-  Serial.println("configurationGet(): opening file '"+String(fileName)+"'\r\n");
 
   File f = filesystem->open(fileName, "r");
 
@@ -174,9 +172,7 @@ bool configurationGet(T& c)
 
     if(f.read((uint8_t*)&c, sizeof(T)) == sizeof(T))
     {
-      Serial.printf("configurationGet(): successfully read data, validating... ");
       ret = validateConfiguration(c);
-      Serial.printf("ret = %s\r\n", ret?"true":"false");
     }
     else
     {
@@ -201,13 +197,10 @@ bool configurationPut(T& c)
 
   if(validateConfiguration(c))
   {
-    Serial.printf("configurationPut(): opening file '%s'\r\n", fileName);
-    
     File f = filesystem->open(fileName, "w");
 
     if(f.write((uint8_t*)&c, sizeof(T)) == sizeof(T))
     {
-      Serial.printf("configurationPut(): successfully wrote data\r\n");
       ret = true;
     }
     else
@@ -227,8 +220,6 @@ void handleConfigurationWrite(T& c)
 
   setDefaults(c);
 
-  dumpConf("default settings", c);
-
   /*avoid overwriting the data if it is already identical*/
   T readConf;
   bool avoidWriting = false;
@@ -246,11 +237,7 @@ void handleConfigurationWrite(T& c)
 
   if(!avoidWriting)
   {
-    if(configurationPut(c))
-    {
-      Serial.println("Written successfully!");
-    } 
-    else
+    if(!configurationPut(c))
     {
       Serial.println("Write FAILED!");
     }
@@ -285,17 +272,11 @@ void tallyBoxConfiguration(tallyBoxConfig_t& c)
 {
   /*Note: both functions are blocking. If the writing or reading fails, the program stops and will wait for reset*/
 
-  Serial.println("************ NETWORK CONFIGURATION ****");
-
   /*handle network configuration part*/
   handleConfigurationWrite(c.network);
   handleConfigurationRead(c.network);
 
-  Serial.println("************ USER CONFIGURATION ****");
-
   /*handle user configuration part*/
   handleConfigurationWrite(c.user);
   handleConfigurationRead(c.user);
-
-  Serial.println("************ DONE ****");
 }
