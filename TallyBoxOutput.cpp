@@ -110,6 +110,8 @@ uint16_t getOutputBrightness(tallyBoxOutput_t ch)
 {
   uint16_t raw = (ch==OUTPUT_GREEN ? myGreenBrightnessValue : myRedBrightnessValue);
   uint16_t percent = map(raw, 0, MAX_BRIGHTNESS, 0, 100);
+
+  return percent;
 }
 
 void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram, bool inTransition)
