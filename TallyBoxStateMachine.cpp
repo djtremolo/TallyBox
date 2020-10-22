@@ -25,6 +25,7 @@ ATEMstd AtemSwitcher;
 static bool isMaster = false;
 static bool tallyPreview = false;
 static bool tallyProgram = false;
+static bool tallyInTransition = false;
 static bool masterCommunicationFrozen = false;
 static tallyBoxState_t myState = CONNECTING_TO_WIFI; /*start from here*/
 static uint32_t lastReceivedMasterMessageInTicks = 0;
@@ -177,10 +178,11 @@ static void stateConnectingToPeerNetworkHost(tallyBoxConfig_t& c, uint8_t *inter
   myState = RUNNING_PEERNETWORK;
 }
 
-static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel)
+static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel, bool inTransition)
 {
   tallyPreview = (greenChannel == c.user.cameraId);
   tallyProgram = (redChannel == c.user.cameraId);
+  tallyInTransition = inTransition;
 }
 
 static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
@@ -207,9 +209,10 @@ static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
   {
     uint16_t greenChannel = AtemSwitcher.getPreviewInput();
     uint16_t redChannel = AtemSwitcher.getProgramInput();
+    bool inTransition = AtemSwitcher.getTransitionInTransition(0);
 
-    setTallySignals(c, greenChannel, redChannel);
-    peerNetworkSend(c, greenChannel, redChannel);
+    setTallySignals(c, greenChannel, redChannel, inTransition);
+    peerNetworkSend(c, greenChannel, redChannel, inTransition);
   }
 
   /*report state changes*/
@@ -232,10 +235,11 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
 {
   static bool prevCommFrozen = false;
   uint16_t greenChannel, redChannel;
+  bool inTransition;
 
-  if(peerNetworkReceive(greenChannel, redChannel))
+  if(peerNetworkReceive(greenChannel, redChannel, inTransition))
   {
-    setTallySignals(c, greenChannel, redChannel);
+    setTallySignals(c, greenChannel, redChannel, inTransition);
     lastReceivedMasterMessageInTicks = cumulativeTickCounter;
     masterCommunicationFrozen = false;
   }
@@ -271,7 +275,7 @@ static bool tallyDataIsValid()
   return ret;
 }
 
-#define CPU_TIME_DEBUG                  true
+#define CPU_TIME_DEBUG                  false
 
 #if CPU_TIME_DEBUG
 #define DIAG_LED_LOOP_FULL              D0
@@ -384,7 +388,7 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   /*update main output: Red&Green tally lights*/
   DEBUG_PULSE_START(DIAG_LED_LOOP_TALLY_OUTPUT);
-  outputUpdate(currentTick, tallyDataIsValid(), tallyPreview, tallyProgram);
+  outputUpdate(currentTick, tallyDataIsValid(), tallyPreview, tallyProgram, tallyInTransition);
   DEBUG_PULSE_STOP(DIAG_LED_LOOP_TALLY_OUTPUT);
 
   /*update diagnostic led to indicate running state*/

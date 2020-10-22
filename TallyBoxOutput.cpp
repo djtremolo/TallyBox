@@ -53,6 +53,16 @@ void setBrightnessSettingMode(tallyBoxOutput_t ch, bool enable)
   }
 }
 
+bool getBrightnessSettingMode(tallyBoxOutput_t& ch)
+{
+  bool ret = false;
+  ret = brightnessSettingModeEnabled;
+  ch = brightnessSettingModeChannel;
+  
+  return ret;
+}
+
+
 void setOutputState(tallyBoxOutput_t ch, bool outputState)
 {
   switch(ch)
@@ -102,7 +112,7 @@ uint16_t getOutputBrightness(tallyBoxOutput_t ch)
   uint16_t percent = map(raw, 0, MAX_BRIGHTNESS, 0, 100);
 }
 
-void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram)
+void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram, bool inTransition)
 {
   if(dataIsValid)
   {
@@ -110,7 +120,7 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, boo
     setOutputState(OUTPUT_RED, tallyProgram);
   }
   
-  outputUpdate(currentTick, dataIsValid);
+  outputUpdate(currentTick, dataIsValid, inTransition);
 }
 
 static void getWarningLevels(uint16_t currentTick, int32_t& greenLevel, int32_t& redLevel)
@@ -186,13 +196,14 @@ bool handleBrightnessSettingMode()
     }
     else
     {
-      brightnessSettingModeEnabled = false;
+      /*timeout exceeded, disable setting mode*/
+      setBrightnessSettingMode(OUTPUT_NONE, false);
     }
   } 
   return skipRealOutput;
 }
 
-void outputUpdate(uint16_t currentTick, bool dataIsValid)
+void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition)
 {
   if(handleBrightnessSettingMode())
   {
@@ -203,11 +214,30 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid)
   /*control the light output for the user*/
   if(dataIsValid)
   {
-    analogWrite(PIN_GREEN, (myGreenState ? myGreenBrightnessValue : 0));
-    analogWrite(PIN_RED, (myRedState ? myRedBrightnessValue : 0));
+    if(inTransition)
+    {
+      if(myGreenState || myRedState)
+      {
+        /*while in transition - either on program/preview - we are actually in program, so let's show RED*/
+        analogWrite(PIN_RED, myRedBrightnessValue);
+      }
+      else
+      {
+        /*otherwise, show nothing*/
+        analogWrite(PIN_GREEN, 0);
+        analogWrite(PIN_RED, 0);
+      }
+    }
+    else
+    {
+      /*NORMAL case:*/
+      analogWrite(PIN_GREEN, (myGreenState ? myGreenBrightnessValue : 0));
+      analogWrite(PIN_RED, (myRedState ? myRedBrightnessValue : 0));
+    }
   }
   else
   {
+    /*WARNING case: smoothly wave between green and red to indicate disconnection*/
     int32_t wGreen, wRed;
     getWarningLevels(currentTick, wGreen, wRed);
     analogWrite(PIN_GREEN, wGreen);

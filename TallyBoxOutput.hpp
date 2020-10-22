@@ -18,9 +18,11 @@ void getOutputTxData(uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmCha
 void putOutputRxData(uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness);
 
 void setBrightnessSettingMode(tallyBoxOutput_t ch, bool enable);
+bool getBrightnessSettingMode(tallyBoxOutput_t& ch);
+
 void setOutputBrightness(uint16_t percent, tallyBoxOutput_t ch);
 uint16_t getOutputBrightness(tallyBoxOutput_t ch);
-void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram);
-void outputUpdate(uint16_t currentTick, bool dataIsValid);
+void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram, bool inTransition);
+void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition);
 
 #endif
