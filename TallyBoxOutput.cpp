@@ -58,6 +58,8 @@ bool getBrightnessSettingMode(tallyBoxOutput_t& ch)
   bool ret = false;
   ret = brightnessSettingModeEnabled;
   ch = brightnessSettingModeChannel;
+  
+  return ret;
 }
 
 
