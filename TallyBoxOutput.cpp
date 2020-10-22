@@ -194,7 +194,8 @@ bool handleBrightnessSettingMode()
     }
     else
     {
-      brightnessSettingModeEnabled = false;
+      /*timeout exceeded, disable setting mode*/
+      setBrightnessSettingMode(OUTPUT_NONE, false);
     }
   } 
   return skipRealOutput;
@@ -234,7 +235,7 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition)
   }
   else
   {
-    /*WARNING case: smootly wave between green and red to indicate disconnection*/
+    /*WARNING case: smoothly wave between green and red to indicate disconnection*/
     int32_t wGreen, wRed;
     getWarningLevels(currentTick, wGreen, wRed);
     analogWrite(PIN_GREEN, wGreen);
