@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
 #include <FS.h>
 #include <LittleFS.h>
 #include "TallyBoxWebServer.hpp"
@@ -9,8 +8,6 @@
 static FS* filesystem = &LittleFS;
 
 #define DBG_OUTPUT_PORT Serial
-
-const char* host = "tallybox";
 
 static ESP8266WebServer server(80);
 
@@ -140,6 +137,68 @@ bool handleFileRead(String path) {
   }
   return false;
 }
+
+const char* getIndexHtm()
+{
+  const char fallback[] = "<html>file index.htm not found</html>";
+  static bool initialized = false;
+  static char bufContent[2000] = "";
+  static size_t bufLen = 0;
+
+  if(!initialized)
+  {
+    if(filesystem->exists("index.htm"))
+    {
+      File file = filesystem->open("index.htm", "r");
+
+      bufLen = file.readBytes(bufContent, sizeof(bufContent));
+      if(bufLen > 0)
+      {
+        initialized = true;
+      }
+      file.close();
+    }
+  }
+
+  /*check if the file content is available*/
+  if(initialized)
+  {
+    return (const char*)bufContent;
+  }
+
+  return fallback;
+}
+
+
+bool handleIndexHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
+  String path = s.uri();
+
+  DBG_OUTPUT_PORT.println("handleIndexHtm: " + path);
+  if (path.endsWith("/")) {
+    path += "index.htm";
+  }
+  String contentType = getContentType(path);
+  const char* rawFile = getIndexHtm();
+  static char myBuf[2000];
+
+  if(useServerArgs)
+  {
+    strcpy(c.network.wifiSSID, server.arg("wifiSSID").c_str());
+    strcpy(c.network.wifiPasswd, server.arg("wifiPassword").c_str());
+    IPAddress ip;
+    ip.fromString(server.arg("hostIp"));
+    c.network.hostAddressU32 = ip.v4();
+    c.user.greenBrightnessPercent = server.arg("greenBrightness").toInt();
+    c.user.redBrightnessPercent = server.arg("redBrightness").toInt();
+  }
+
+  snprintf(myBuf, 2000, rawFile, c.network.wifiSSID, c.network.wifiPasswd, IPAddress(c.network.hostAddressU32).toString().c_str(), c.user.greenBrightnessPercent, c.user.redBrightnessPercent);
+
+  server.send(200, "text/html", myBuf);
+  return true;
+}
+
+
 void handleFileUpload() {
   if (server.uri() != "/edit") {
     return;
@@ -185,26 +244,21 @@ void handleFileDelete() {
 
 
 
-void tallyBoxWebServerInitialize()
+void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
 {
   initialized = true;
 
-  //filesystem->begin();
-
+  Dir dir = filesystem->openDir("/");
+  while (dir.next()) 
   {
-    Dir dir = filesystem->openDir("/");
-    while (dir.next()) {
-      String fileName = dir.fileName();
-      size_t fileSize = dir.fileSize();
-      DBG_OUTPUT_PORT.printf("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
-    }
-    DBG_OUTPUT_PORT.printf("\n");
+    String fileName = dir.fileName();
+    size_t fileSize = dir.fileSize();
+    DBG_OUTPUT_PORT.printf("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
   }
+  DBG_OUTPUT_PORT.printf("\n");
 
-
-  MDNS.begin(host);
   DBG_OUTPUT_PORT.print("Open http://");
-  DBG_OUTPUT_PORT.print(host);
+  DBG_OUTPUT_PORT.print(c.network.mdnsHostName);
   DBG_OUTPUT_PORT.println(".local/edit to see the file browser");
 
   //SERVER INIT
@@ -228,15 +282,21 @@ void tallyBoxWebServerInitialize()
     server.send(200, "text/plain", "");
   }, handleFileUpload);
 
-#if 0
-  server.on("/index.htm", HTTP_GET, []() {
-    if (!handleFileRead(server.uri())) {
+  server.on("/", HTTP_GET, [&]() {
+    if (!handleIndexHtm(c, server, false)) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });
 
-  server.on("/index.htm", HTTP_POST, []() {
-    if (!handleFileRead(server.uri())) {
+  server.on("/index.htm", HTTP_GET, [&]() {
+    if (!handleIndexHtm(c, server, false)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/index.htm", HTTP_POST, [&]() {
+
+    if (!handleIndexHtm(c, server, true)) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });
@@ -254,7 +314,6 @@ void tallyBoxWebServerInitialize()
     }
   });
 
-#endif
   //called when the url is not defined here
   //use it to load content from SPIFFS
   server.onNotFound([]() {
@@ -289,5 +348,4 @@ void tallyBoxWebServerUpdate()
   }
 
   server.handleClient();
-  MDNS.update();
 }

@@ -19,12 +19,12 @@
   <body>
     <h1>TallyBox Configuration</h1>
     <div class='container'>
-      <form action='/' method='post'>
+      <form action='/index.htm' method='post'>
         <label>Wifi SSID</label><br />
         <input
           type='text'
           name='wifiSSID'
-          value='myTallyNetSSID'
+          value='%s'
           size='15'
           maxlength='20'
         /><br />
@@ -32,7 +32,7 @@
         <input
           type='password'
           name='wifiPassword'
-          value='myTallyNetPassword'
+          value='%s'
           size='15'
           maxlength='20'
         /><br />
@@ -40,7 +40,7 @@
         <input
           type='text'
           name='hostIp'
-          value='192.168.1.10'
+          value='%s'
           size='15'
           maxlength='15'
         /><br />
@@ -48,7 +48,7 @@
         <input
           type='range'
           name='greenBrightness'
-          value='50'
+          value='%u'
           min='0'
           max='100'
         /><br />
@@ -56,7 +56,7 @@
         <input
           type='range'
           name='redBrightness'
-          value='50'
+          value='%u'
           min='0'
           max='100'
         /><br />
@@ -65,7 +65,7 @@
           type='SUBMIT'
           name='submit'
           value='Store parameters'
-          id='jepa'
+          id='store'
         /><br />
       </form>
     </div>

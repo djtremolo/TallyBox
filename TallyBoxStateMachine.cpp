@@ -3,6 +3,11 @@
 #include <ATEMbase.h>
 #include <ATEMstd.h>
 #include <SkaarhojPgmspace.h>
+
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiClient.h>
+
 #include "OTAUpgrade.hpp"
 #include "TallyBoxOutput.hpp"
 #include "TallyBoxPeerNetwork.hpp"
@@ -30,7 +35,7 @@ static bool masterCommunicationFrozen = false;
 static tallyBoxState_t myState = CONNECTING_TO_WIFI; /*start from here*/
 static uint32_t lastReceivedMasterMessageInTicks = 0;
 static uint32_t cumulativeTickCounter = 0;
-
+static bool mDnsInitialized = false;
 
 const uint32_t ledSequence[STATE_MAX] = 
 {
@@ -47,6 +52,8 @@ const uint32_t ledSequence[STATE_MAX] =
 /*** INTERNAL FUNCTIONS **************************************/
 static uint32_t getLedSequenceForRunState();
 static void updateLed(uint16_t tick);
+static void MDnsInitialize(tallyBoxConfig_t& c);
+static void MDnsUpdate();
 static bool tallyDataIsValid();
 static void setTallySignals(tallyBoxNetworkConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
 static void stateConnectingToWifi(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
@@ -94,6 +101,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
   {
     case 0: /*init wifi device*/
       Serial.print("Connecting to WiFi"); 
+      WiFi.mode(WIFI_STA);
       WiFi.begin(c.network.wifiSSID, c.network.wifiPasswd);
       internalState[CONNECTING_TO_WIFI] = 1;
       break;
@@ -126,11 +134,11 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       }  
 
       /*initialize Over-the-Air upgdade mechanism*/
-      WiFi.mode(WIFI_STA);
+      delay(100);
       OTAInitialize();
-
+      MDnsInitialize(c);
       tallyBoxTerminalInitialize();
-      tallyBoxWebServerInitialize();
+      tallyBoxWebServerInitialize(c);
       break;
 
     default:
@@ -310,6 +318,34 @@ void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
   isMaster = c.user.isMaster;
 }
 
+static void MDnsInitialize(tallyBoxConfig_t& c)
+{
+  //if(MDNS.begin("tallybox")) //c.network.mdnsHostName);  
+
+
+  if(!MDNS.begin("esp8266")) 
+  {             // Start the mDNS responder for esp8266.local
+    Serial.println("Error setting up MDNS responder!");
+  }
+  else
+  {
+    MDNS.addService("http", "tcp", 80);
+    Serial.println("mDNS responder started");
+  }
+
+  mDnsInitialized = true;
+}
+
+
+static void MDnsUpdate()
+{
+  if(mDnsInitialized)
+  {
+    MDNS.update();
+  }
+}
+
+
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState)
 {
   static tallyBoxState_t prevState = STATE_MAX; /*force printing out the first state*/
@@ -324,6 +360,9 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   DEBUG_PULSE_START(DIAG_LED_LOOP_OTA);
   OTAUpdate();
   DEBUG_PULSE_STOP(DIAG_LED_LOOP_OTA);
+
+  /*run mDns*/
+  MDnsUpdate();
 
   /*only run state machine once per tick*/
   if(currentTick == prevTick)
