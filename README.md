@@ -22,7 +22,7 @@ Briefly, TallyBox does not implement *any* security practices. It relies complet
 
 # Software
 ## Architectural overview
-### Main module
+### TallyBox.ino
 
 ### TallyBoxConfiguration
 
