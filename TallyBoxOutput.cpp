@@ -128,33 +128,25 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, boo
 static void getWarningLevels(uint16_t currentTick, int32_t& greenLevel, int32_t& redLevel)
 {
   static uint16_t prevTick = 0;
-  static bool goingUp = true;
-  const int32_t wcMax = 480;  /*0...1023*/
-  const int32_t wcMin = 0;  /*0...1023*/
+  const int32_t wcMaxRed = 480;  /*0...1023*/
+  const int32_t wcMinRed = 0;  /*0...1023*/
+  const int32_t wcMaxGrn = 1023;  /*0...1023*/
+  const int32_t wcMinGrn = 0;  /*0...1023*/
 
-  /*keep warning sequence running in case it will be needed due to disconnection*/
-  /*check if this is a new round: currentTick goes from 0...319 in 10ms steps -> full round = 3.2 seconds*/
-  if(currentTick < prevTick)
+  if(currentTick<160)
   {
-    /*reverse direction*/
-    goingUp = !goingUp;
-  }
-  prevTick = currentTick;
-
-  /*update warningCounter value*/
-  if(goingUp)
-  {
+    /*the first half*/
     /*green: increasing tick causes raising the output value
       red:   inverted */
-    greenLevel = map(currentTick, 0, 319, wcMin, wcMax);
-    redLevel = map(currentTick, 0, 319, wcMax, wcMin);
+    greenLevel = map(currentTick, 0, 159, wcMinGrn, wcMaxGrn);
+    redLevel = map(currentTick, 0, 159, wcMaxRed, wcMinRed);
   }
   else
   {
-    /*green: increasing tick causes lowering the output value
-      red:   inverted */
-    greenLevel = map(currentTick, 0, 319, wcMax, wcMin);
-    redLevel = map(currentTick, 0, 319, wcMin, wcMax);
+    /*red:   increasing tick causes raising the output value
+      green: inverted */
+    greenLevel = map(currentTick, 160, 319, wcMaxGrn, wcMinGrn);
+    redLevel = map(currentTick, 160, 319, wcMinRed, wcMaxRed);
   }
 }
 

@@ -192,7 +192,7 @@ static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t
   tallyInTransition = inTransition;
 }
 
-#define INCOMING_FAULT_TOLERANCE_IN_10MS_TICKS                100
+#define INCOMING_FAULT_TOLERANCE_IN_10MS_TICKS                200
 
 
 static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
