@@ -27,7 +27,6 @@
 
 
 ATEMstd AtemSwitcher;
-static bool isMaster = false;
 static bool tallyPreview = false;
 static bool tallyProgram = false;
 static bool tallyInTransition = false;
@@ -121,7 +120,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       Serial.println(WiFi.localIP());
       internalState[CONNECTING_TO_WIFI] = 0;
 
-      if(isMaster)
+      if(c.user.isMaster)
       {
         myState = CONNECTING_TO_ATEM_HOST;
       }
@@ -321,25 +320,20 @@ void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
   pinMode(DIAG_LED_LOOP_WEB_SERVER, OUTPUT);
 #endif
 
-  isMaster = c.user.isMaster;
 }
 
 static void MDnsInitialize(tallyBoxConfig_t& c)
 {
-  //if(MDNS.begin("tallybox")) //c.network.mdnsHostName);  
-
-
-  if(!MDNS.begin("esp8266")) 
-  {             // Start the mDNS responder for esp8266.local
+  if(!MDNS.begin(c.network.mdnsHostName)) 
+  {
     Serial.println("Error setting up MDNS responder!");
   }
   else
   {
     MDNS.addService("http", "tcp", 80);
     Serial.println("mDNS responder started");
+    mDnsInitialized = true;
   }
-
-  mDnsInitialized = true;
 }
 
 
@@ -361,14 +355,6 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   bool printStateName = false;
 
   DEBUG_PULSE_START(DIAG_LED_LOOP_FULL);
-
-  /*call over-the-air update mechanism from here to provide faster speed*/
-  DEBUG_PULSE_START(DIAG_LED_LOOP_OTA);
-  OTAUpdate();
-  DEBUG_PULSE_STOP(DIAG_LED_LOOP_OTA);
-
-  /*run mDns*/
-  MDnsUpdate();
 
   /*only run state machine once per tick*/
   if(currentTick == prevTick)
@@ -446,6 +432,14 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
   DEBUG_PULSE_START(DIAG_LED_LOOP_WEB_SERVER);
   tallyBoxWebServerUpdate();
   DEBUG_PULSE_STOP(DIAG_LED_LOOP_WEB_SERVER);
+
+  /*call over-the-air update mechanism from here to provide faster speed*/
+  DEBUG_PULSE_START(DIAG_LED_LOOP_OTA);
+  OTAUpdate();
+  DEBUG_PULSE_STOP(DIAG_LED_LOOP_OTA);
+
+  /*run mDns*/
+  MDnsUpdate();
 
   DEBUG_PULSE_STOP(DIAG_LED_LOOP_FULL);
 }

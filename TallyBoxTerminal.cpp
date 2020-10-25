@@ -128,7 +128,7 @@ terminalUserEvent_t parseUserInput(WiFiClient client, String& cmd, String& val)
 typedef enum 
 {
   MENU_MAIN,
-  MENU_STATUS,
+  MENU_RESTART,
   MENU_BRIGHTNESS,
   /*************/
   MENU_MAX
@@ -142,8 +142,8 @@ typedef struct
 
 const terminalMenuItem_t terminalMenu[MENU_MAX] = 
 {
-  {"Main menu:\r\n  1 = Status\r\n  2 = Brightness\r\n  -> "},
-  {"Status:"},
+  {"Main menu:\r\n  1 = Restart\r\n  2 = Brightness\r\n  -> "},
+  {"Restart\r\n  y/Y = yes\r\n  others = Return to main menu\r\n "},
   {"Brightness\r\n  g/G = Preview\r\n  r/R = Program\r\n  l/L = Both channels linked\r\n  m/M = Return to main menu\r\n "}
 };
 
@@ -311,7 +311,7 @@ void userInterface(WiFiClient client)
   /*removeme end: report master status*/
 
 
-  /*removeme begin: report master status*/
+  /*removeme begin: report tick compensation status*/
   static int32_t prevCompensationValue = false;
   int32_t compensationValue = getTickCompensationValue();
 
@@ -323,12 +323,7 @@ void userInterface(WiFiClient client)
 
     prevCompensationValue = compensationValue;
   }
-  /*removeme end: report master status*/
-
-
-
-
-
+  /*removeme end: report tick compensation status*/
 
   String cmd;
   String val;
@@ -356,13 +351,32 @@ void userInterface(WiFiClient client)
           case USER_EVENT_COMMAND:
             if(cmd=="1")
             {
-              myState = MENU_STATUS;
+              myState = MENU_RESTART;
             }
             else if(cmd=="2")
             {
               sampleBrightnessValues();
               selectedBrightnessChannel = OUTPUT_NONE;
               myState = MENU_BRIGHTNESS;
+            }
+            break;
+          default:
+            break;
+        }
+        break;
+      case MENU_RESTART:
+        switch(ev)
+        {
+          case USER_EVENT_COMMAND:
+            if(cmdFirst=='y' || cmdFirst=='Y')
+            {
+              client.println("\r\nRESTARTING\r\n");
+              delay(1000);
+              ESP.restart();
+            }
+            else
+            {
+              myState = MENU_MAIN;
             }
             break;
           default:

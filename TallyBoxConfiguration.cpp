@@ -77,8 +77,8 @@ void setDefaults(tallyBoxUserConfig_t& c)
   c.versionOfConfiguration = TALLYBOX_CONFIGURATION_VERSION;
 
   c.cameraId = TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID;
-  c.greenBrightnessPercent = DEFAULT_BRIGHTNESS;
-  c.redBrightnessPercent = DEFAULT_BRIGHTNESS;
+  c.greenBrightnessPercent = DEFAULT_GREEN_BRIGHTNESS;
+  c.redBrightnessPercent = DEFAULT_RED_BRIGHTNESS;
   c.isMaster = TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER; 
 
   c.checkSum = calcChecksum(c);

@@ -2,8 +2,9 @@
 #define __TALLYBOXOUTPUT_HPP__
 #include "Arduino.h"
 
-#define MAX_BRIGHTNESS          1023
-#define DEFAULT_BRIGHTNESS      ((1 * MAX_BRIGHTNESS) / 2)
+#define MAX_BRIGHTNESS                1023
+#define DEFAULT_RED_BRIGHTNESS        200
+#define DEFAULT_GREEN_BRIGHTNESS      1000
 
 typedef enum
 {

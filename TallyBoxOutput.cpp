@@ -10,8 +10,8 @@ static bool brightnessSettingModeEnabled = false;
 static uint16_t brightnessSettingModeCounter = 0;
 static tallyBoxOutput_t brightnessSettingModeChannel;
 
-static uint16_t myGreenBrightnessValue = DEFAULT_BRIGHTNESS;
-static uint16_t myRedBrightnessValue = DEFAULT_BRIGHTNESS;
+static uint16_t myGreenBrightnessValue = DEFAULT_GREEN_BRIGHTNESS;
+static uint16_t myRedBrightnessValue = DEFAULT_RED_BRIGHTNESS;
 
 void setOutputState(tallyBoxOutput_t ch, bool outputState);
 bool getOutputState(tallyBoxOutput_t ch);
