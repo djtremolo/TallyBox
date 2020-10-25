@@ -213,6 +213,7 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition)
       if(myGreenState || myRedState)
       {
         /*while in transition - either on program/preview - we are actually in program, so let's show RED*/
+        analogWrite(PIN_GREEN, 0);
         analogWrite(PIN_RED, myRedBrightnessValue);
       }
       else
