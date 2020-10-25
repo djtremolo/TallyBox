@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #define TALLYBOX_CONFIGURATION_DEFAULT_SSID             "myTallyNetSSID"        /*customize*/
 #define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           ""                      /*customize*/
 #else
@@ -18,7 +18,7 @@
 #define TALLYBOX_CONFIGURATION_DEFAULT_HASOWNIP        false
 
 #define TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID       1
-#define TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER        true
+#define TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER        (TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID==1)
 
 #define TALLYBOX_PROGRAM_FORCE_WRITE_DEFAULTS          0       /*enable this for writing the default values to EEPROM, disable for normal operation*/
 

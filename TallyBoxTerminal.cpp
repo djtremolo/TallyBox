@@ -3,6 +3,7 @@
 #include "TallyBoxInfra.hpp"
 #include <Arduino_CRC32.h>
 #include "TallyBoxOutput.hpp"
+#include "TallyBoxStateMachine.hpp"
 
 static WiFiServer server(7493);
 //WiFiClient client;
@@ -291,6 +292,43 @@ void userInterface(WiFiClient client)
   {
     return;
   }
+
+
+  /*removeme begin: report master status*/
+  static bool prevMasterConnection = false;
+  bool masterConnection = tallyDataIsValid();
+
+  if(masterConnection != prevMasterConnection)
+  {
+    client.print("*** " + String(millis()));
+    if(masterConnection)
+      client.println(": Master CONNECTED");
+    else
+      client.println(": Master connection BROKEN");
+
+    prevMasterConnection = masterConnection;
+  }
+  /*removeme end: report master status*/
+
+
+  /*removeme begin: report master status*/
+  static int32_t prevCompensationValue = false;
+  int32_t compensationValue = getTickCompensationValue();
+
+  if(compensationValue != prevCompensationValue)
+  {
+    client.print("*** " + String(millis()));
+
+    client.println(": TickCompensation="+String(compensationValue));
+
+    prevCompensationValue = compensationValue;
+  }
+  /*removeme end: report master status*/
+
+
+
+
+
 
   String cmd;
   String val;

@@ -17,5 +17,6 @@ typedef enum
 
 void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c);
 void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToState = STATE_MAX);
+bool tallyDataIsValid();
 
 #endif

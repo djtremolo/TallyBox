@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 #include <FS.h>
 #include <LittleFS.h>
 #include "TallyBoxWebServer.hpp"
@@ -10,6 +11,7 @@ static FS* filesystem = &LittleFS;
 #define DBG_OUTPUT_PORT Serial
 
 static ESP8266WebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
 
 //holds the current upload
 File fsUploadFile;
@@ -333,6 +335,10 @@ void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
     server.send(200, "text/json", json);
     json = String();
   });
+
+
+  httpUpdater.setup(&server);
+
   server.begin();
   DBG_OUTPUT_PORT.println("HTTP server started");
 

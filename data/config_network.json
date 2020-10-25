@@ -1,0 +1,11 @@
+{
+  "sizeOfConfiguration": 84,
+  "versionOfConfiguration": 1,
+  "wifiSSID": "myTallyNetSSID",
+  "wifiPasswd": "",
+  "hostAddressU32": 1677830336,
+  "ownAddressU32": 1694607552,
+  "hasStaticIp": false,
+  "mdnsHostName": "tallybox.local",
+  "checkSum": 1088370860
+}

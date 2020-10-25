@@ -6,11 +6,16 @@
 #define TIME_SPLITS                   32    /*must be 32 because of the 32-bit led sequence values*/
 #define TIME_FULL_ROUND               (TIME_TICK_PRESCALER*TIME_SPLITS)
 
-int32_t myTickCompensationValue = 0;
+static int32_t myTickCompensationValue = 0;
 
 void setTickCompensationValue(int32_t comp)
 {
   myTickCompensationValue = comp;
+}
+
+int32_t getTickCompensationValue()
+{
+  return myTickCompensationValue;
 }
 
 uint16_t getCurrentTick(bool nonCompensated)

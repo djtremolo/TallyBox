@@ -54,7 +54,6 @@ static uint32_t getLedSequenceForRunState();
 static void updateLed(uint16_t tick);
 static void MDnsInitialize(tallyBoxConfig_t& c);
 static void MDnsUpdate();
-static bool tallyDataIsValid();
 static void setTallySignals(tallyBoxNetworkConfig_t& c, uint16_t greenChannel, uint16_t redChannel);
 static void stateConnectingToWifi(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
 static void stateConnectingToAtemHost(tallyBoxNetworkConfig_t& c, uint8_t *internalState);
@@ -193,6 +192,9 @@ static void setTallySignals(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t
   tallyInTransition = inTransition;
 }
 
+#define INCOMING_FAULT_TOLERANCE_IN_10MS_TICKS                100
+
+
 static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
 {
   static bool prevCommFrozen = false;
@@ -203,8 +205,12 @@ static void stateRunningAtem(tallyBoxConfig_t& c, uint8_t *internalState)
     masterCommunicationFrozen = false;
     lastReceivedMasterMessageInTicks = cumulativeTickCounter;
   }
+  else
+  {
+    Serial.println("ATEM Disconnection!!");   
+  }
 
-  if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > 10)
+  if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > INCOMING_FAULT_TOLERANCE_IN_10MS_TICKS)
   {
     masterCommunicationFrozen = true;
 
@@ -252,7 +258,7 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
     masterCommunicationFrozen = false;
   }
 
-  if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > 10)
+  if(cumulativeTickCounter - lastReceivedMasterMessageInTicks > INCOMING_FAULT_TOLERANCE_IN_10MS_TICKS)
   {
     masterCommunicationFrozen = true;
   }
@@ -273,7 +279,7 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
   }
 }
 
-static bool tallyDataIsValid()
+bool tallyDataIsValid()
 {
   bool ret = false;
   if(((myState==RUNNING_ATEM) || (myState==RUNNING_PEERNETWORK)) && (!masterCommunicationFrozen))
