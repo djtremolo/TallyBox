@@ -4,7 +4,7 @@
 The TallyBox unit that is attached to each video camera in multi-camera setup. The TallyBox provides a visual signal for both camera operator and the actor(s) of the scene. The TallyBox has three main states:
 - Dark: the camera in question is not being used in program
 - Green: the camera in question is on preview state, i.e. it will most probably be the next camera that will be used in program. This signal informs the camera operator to prepare for a steady shot.
-- Red: this camera is currently used in program. The camera operator shall keep the shot steady. For the use cases, where the actor(s) benefit from it, this signal provides the awareness of which camera is the active one.
+- Red: this camera is currently used in program, i.e. the camera operator shall keep the shot steady. For the use cases, where the actor(s) benefit from it, this state indicates which camera is the active one. Note: During cross-fade, there might be more than one cameras indicating red signal.
 
 ## Usage
 The TallyBox communicates with an ATEM-compatible video switcher, which provides the status of the currently used camera channel. The communication uses WiFi connection, i.e. it requires an access point that is on the same network where the switcher is.
