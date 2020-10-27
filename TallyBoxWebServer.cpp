@@ -5,6 +5,8 @@
 #include <FS.h>
 #include <LittleFS.h>
 #include "TallyBoxWebServer.hpp"
+#include "TallyBoxOutput.hpp"
+#include <malloc.h>
 
 static FS* filesystem = &LittleFS;
 
@@ -12,6 +14,10 @@ static FS* filesystem = &LittleFS;
 
 static ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
+
+static char *myIndexHtmBuf = NULL;
+static char *myConfigNetworkHtmBuf = NULL;
+static char *myConfigUserHtmBuf = NULL;
 
 //holds the current upload
 File fsUploadFile;
@@ -140,49 +146,158 @@ bool handleFileRead(String path) {
   return false;
 }
 
-const char* getIndexHtm()
+bool getRawHtm(const char* fileName, char *bufContent, size_t maxLen)
 {
-  const char fallback[] = "<html>file index.htm not found</html>";
-  static bool initialized = false;
-  static char bufContent[2000] = "";
+  bool dataValid = false;
   static size_t bufLen = 0;
 
-  if(!initialized)
+  if(filesystem->exists(fileName))
   {
-    if(filesystem->exists("index.htm"))
+    File file = filesystem->open(fileName, "r");
+
+    bufLen = file.readBytes(bufContent, maxLen);
+    if(bufLen > 0)
     {
-      File file = filesystem->open("index.htm", "r");
-
-      bufLen = file.readBytes(bufContent, sizeof(bufContent));
-      if(bufLen > 0)
-      {
-        initialized = true;
-      }
-      file.close();
+      dataValid = true;
     }
+    file.close();
   }
 
-  /*check if the file content is available*/
-  if(initialized)
-  {
-    return (const char*)bufContent;
-  }
-
-  return fallback;
+  return dataValid;
 }
 
 
+#define MAX_HTML_FILE_SIZE    2200
+
 bool handleIndexHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
+  static bool fileHasBeenRead = false;
+  char *bufContent = myIndexHtmBuf;
   String path = s.uri();
 
   DBG_OUTPUT_PORT.println("handleIndexHtm: " + path);
   if (path.endsWith("/")) {
     path += "index.htm";
   }
-  String contentType = getContentType(path);
-  const char* rawFile = getIndexHtm();
-  static char myBuf[2000];
 
+  String contentType = getContentType(path);
+  if(!fileHasBeenRead)
+  {
+    if(!getRawHtm("index.htm", bufContent, MAX_HTML_FILE_SIZE))
+    {
+      Serial.println("file access failed");
+      return false;
+    }
+    fileHasBeenRead = true;
+  }
+
+  server.send(200, "text/html", bufContent);
+  return true;
+}
+
+
+bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
+  //char bufContent[MAX_HTML_FILE_SIZE] = "";
+  char *bufContent = myConfigUserHtmBuf;
+  String path = s.uri();
+  bool validated = true;
+  static bool fileHasBeenRead = false;
+
+  DBG_OUTPUT_PORT.println("handleConfigUserHtm: " + path);
+  if (path.endsWith("/")) {
+    path += "config_user.htm";
+  }
+
+  delay(1);
+
+  String contentType = getContentType(path);
+
+  if(!fileHasBeenRead)
+  {
+    if(!getRawHtm("config_user.htm", bufContent, MAX_HTML_FILE_SIZE))
+    {
+      Serial.println("file access failed");
+      return false;
+    }
+    fileHasBeenRead = true;
+  }
+
+  delay(1);
+
+  Serial.println("file opened");
+  
+  if(useServerArgs)
+  {
+    Serial.println("parsing server args");
+    c.user.isMaster = (server.arg("connectionType") == "master");
+    c.user.cameraId = (uint16_t)(server.arg("cameraId").toInt());
+        
+    float gPct = server.arg("greenBrightnessPercent").toFloat();
+    float rPct = server.arg("redBrightnessPercent").toFloat();
+
+    c.user.greenBrightnessValue = (gPct * 1023.0) / 100.0;
+    c.user.redBrightnessValue = (rPct * 1023.0) / 100.0;
+
+
+    setOutputBrightness((uint16_t)gPct, OUTPUT_GREEN);
+    setOutputBrightness((uint16_t)rPct, OUTPUT_RED);
+
+    if(server.arg("verify") == "on")
+    {
+      validated = true;
+    }
+  }
+
+  float greenPercent = (((float)c.user.greenBrightnessValue)*100.0) / 1023.0;
+  float redPercent = (((float)c.user.redBrightnessValue)*100.0) / 1023.0;
+
+#if 1
+  char myBuf[MAX_HTML_FILE_SIZE] = "";
+
+  Serial.println("filling in web page");
+
+  delay(1);
+
+  snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+          (c.user.isMaster ? "checked" : ""),
+          (c.user.isMaster ? "" : "checked"),
+          c.user.cameraId,
+          (uint16_t)greenPercent,
+          (uint16_t)redPercent,
+          (validated?"enabled":"disabled"));
+
+
+  Serial.println("sending via server");
+
+  Serial.println(myBuf);
+
+  delay(1);
+
+
+  server.send(200, "text/html", myBuf);
+#else
+  server.send(200, "text/html", bufContent);
+#endif
+  return true;
+}
+
+
+bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
+  char *bufContent = myConfigNetworkHtmBuf;
+  String path = s.uri();
+  bool validated = true;
+
+  DBG_OUTPUT_PORT.println("handleConfigNetworkHtm: " + path);
+  if (path.endsWith("/")) {
+    path += "config_network.htm";
+  }
+
+  String contentType = getContentType(path);
+  if(!getRawHtm("config_network.htm", bufContent, MAX_HTML_FILE_SIZE))
+  {
+    return false;
+  }
+
+  
   if(useServerArgs)
   {
     strcpy(c.network.wifiSSID, server.arg("wifiSSID").c_str());
@@ -190,16 +305,28 @@ bool handleIndexHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs
     IPAddress ip;
     ip.fromString(server.arg("hostIp"));
     c.network.hostAddressU32 = ip.v4();
-    c.user.greenBrightnessPercent = server.arg("greenBrightness").toInt();
-    c.user.redBrightnessPercent = server.arg("redBrightness").toInt();
+
+    if(server.arg("verify") == "on")
+    {
+      validated = true;
+    }
   }
 
-  snprintf(myBuf, 2000, rawFile, c.network.wifiSSID, c.network.wifiPasswd, IPAddress(c.network.hostAddressU32).toString().c_str(), c.user.greenBrightnessPercent, c.user.redBrightnessPercent);
+  char myBuf[MAX_HTML_FILE_SIZE] = "";
 
+#if 0
+  snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+          (c.user.isMaster ? "checked" : ""),
+          (c.user.isMaster ? "" : "checked"),
+          c.user.cameraId,
+          c.user.greenBrightnessValue,
+          (uint16_t)greenPercent,
+          (uint16_t)redPercent,
+          (validated?"enabled":"disabled"));
+#endif
   server.send(200, "text/html", myBuf);
   return true;
 }
-
 
 void handleFileUpload() {
   if (server.uri() != "/edit") {
@@ -248,7 +375,22 @@ void handleFileDelete() {
 
 void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
 {
-  initialized = true;
+
+  if((myIndexHtmBuf = (char*)malloc(MAX_HTML_FILE_SIZE)) == NULL)
+  {
+    Serial.println("malloc failed: myIndexHtmBuf");
+    return;
+  }
+  if((myConfigNetworkHtmBuf = (char*)malloc(MAX_HTML_FILE_SIZE)) == NULL)
+  {
+    Serial.println("malloc failed: myConfigNetworkHtmBuf");
+    return;
+  }
+  if((myConfigUserHtmBuf = (char*)malloc(MAX_HTML_FILE_SIZE)) == NULL)
+  {
+    Serial.println("malloc failed: myConfigUserHtmBuf");
+    return;
+  }
 
   Dir dir = filesystem->openDir("/");
   while (dir.next()) 
@@ -297,8 +439,20 @@ void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
   });
 
   server.on("/index.htm", HTTP_POST, [&]() {
-
     if (!handleIndexHtm(c, server, true)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+
+  server.on("/config_user.htm", HTTP_GET, [&]() {
+    if (!handleConfigUserHtm(c, server, false)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/config_user.htm", HTTP_POST, [&]() {
+    if (!handleConfigUserHtm(c, server, true)) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });
@@ -342,8 +496,7 @@ void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
   server.begin();
   DBG_OUTPUT_PORT.println("HTTP server started");
 
-
-
+  initialized = true;
 }
 
 void tallyBoxWebServerUpdate()

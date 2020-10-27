@@ -17,57 +17,11 @@
     </style>
   </head>
   <body>
-    <h1>TallyBox Configuration</h1>
+    <h1>TallyBox</h1>
     <div class='container'>
-      <form action='/index.htm' method='post'>
-        <label>Wifi SSID</label><br />
-        <input
-          type='text'
-          name='wifiSSID'
-          value='%s'
-          size='15'
-          maxlength='20'
-        /><br />
-        <label>Wifi Password</label><br />
-        <input
-          type='password'
-          name='wifiPassword'
-          value='%s'
-          size='15'
-          maxlength='20'
-        /><br />
-        <label>Host IP</label><br />
-        <input
-          type='text'
-          name='hostIp'
-          value='%s'
-          size='15'
-          maxlength='15'
-        /><br />
-        <label>Green Brightness</label><br />
-        <input
-          type='range'
-          name='greenBrightness'
-          value='%u'
-          min='0'
-          max='100'
-        /><br />
-        <label>Red Brightness</label><br />
-        <input
-          type='range'
-          name='redBrightness'
-          value='%u'
-          min='0'
-          max='100'
-        /><br />
-        <br />
-        <input
-          type='SUBMIT'
-          name='submit'
-          value='Store parameters'
-          id='store'
-        /><br />
-      </form>
+      <a href="config_network.htm">Network configuration</a>
+      <br/>
+      <a href="config_user.htm">User settings</a>
     </div>
   </body>
 </html>
