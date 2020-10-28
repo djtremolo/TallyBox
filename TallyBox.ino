@@ -2,7 +2,7 @@
 #include "TallyBoxStateMachine.hpp"
 #include "LittleFS.h"
 
-#define TALLYBOX_FIRMWARE_VERSION               "0.1.2"
+#define TALLYBOX_FIRMWARE_VERSION               "0.1.3-alpha1"
 
 tallyBoxConfig_t myConf;
 static FS* filesystem = &LittleFS;
