@@ -9,7 +9,7 @@ static WiFiServer server(7493);
 //WiFiClient client;
 static bool initialized = false;
 
-void tallyBoxTerminalInitialize()
+void tallyBoxTerminalInitialize(tallyBoxConfig_t& c)
 {
   server.begin();
   initialized = true;
@@ -180,13 +180,13 @@ static float myR = 50.0;
 static float myRatio = 1.0;
 static bool brightnessValuesInitialized = false;
 
-void sampleBrightnessValues()
+void sampleBrightnessValues(tallyBoxConfig_t& c)
 {
   static bool rawValuesInitialized = false;
   if(!rawValuesInitialized)
   {
-    myG = getOutputBrightness(OUTPUT_GREEN);
-    myR = getOutputBrightness(OUTPUT_RED);
+    myG = c.user.greenBrightnessPercent;
+    myR = c.user.redBrightnessPercent;
     rawValuesInitialized = true;
   }
   myRatio = calculateLinkedRatio(myG, myR);
@@ -218,7 +218,7 @@ void normalizeAdjustmentWithRatio(float ratio, float commonAdjValue, float& gAdj
   }
 }
 
-void adjustChannel(tallyBoxOutput_t ch, String& cmd)
+void adjustChannel(tallyBoxConfig_t& c, tallyBoxOutput_t ch, String& cmd)
 {
   float adjustment = 0.0;
   char first = cmd.charAt(0);
@@ -274,12 +274,12 @@ void adjustChannel(tallyBoxOutput_t ch, String& cmd)
       break;
   }
 
-  setOutputBrightness((uint16_t)myG, OUTPUT_GREEN);
-  setOutputBrightness((uint16_t)myR, OUTPUT_RED);
+  c.user.greenBrightnessPercent = myG;
+  c.user.redBrightnessPercent = myR;
 }
 
 
-void userInterface(WiFiClient client)
+void userInterface(tallyBoxConfig_t& c, WiFiClient client)
 {
   static terminalMenuId_t myState = MENU_MAIN;
   static tallyBoxOutput_t selectedBrightnessChannel = OUTPUT_NONE;
@@ -355,7 +355,7 @@ void userInterface(WiFiClient client)
             }
             else if(cmd=="2")
             {
-              sampleBrightnessValues();
+              sampleBrightnessValues(c);
               selectedBrightnessChannel = OUTPUT_NONE;
               myState = MENU_BRIGHTNESS;
             }
@@ -397,7 +397,7 @@ void userInterface(WiFiClient client)
             }
             else if(cmdFirst=='l' || cmdFirst=='L')
             {
-              sampleBrightnessValues();
+              sampleBrightnessValues(c);
               selectedBrightnessChannel = OUTPUT_LINKED;
             }
             else if(cmdFirst=='m' || cmdFirst=='M')
@@ -406,7 +406,7 @@ void userInterface(WiFiClient client)
             }
             else if(cmdFirst=='+' || cmdFirst=='-')
             {
-              adjustChannel(selectedBrightnessChannel, cmd);
+              adjustChannel(c, selectedBrightnessChannel, cmd);
             }
             break;
           default:
@@ -449,7 +449,7 @@ void userInterface(WiFiClient client)
 }
 
 
-void tallyBoxTerminalUpdate()
+void tallyBoxTerminalUpdate(tallyBoxConfig_t& c)
 {
   if(!initialized)
   {
@@ -457,6 +457,6 @@ void tallyBoxTerminalUpdate()
   }
 
   auto client = handleClientConnection();
-  userInterface(client);
+  userInterface(c, client);
 
 }

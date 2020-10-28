@@ -135,7 +135,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       delay(100);
       OTAInitialize();
       MDnsInitialize(c);
-      tallyBoxTerminalInitialize();
+      tallyBoxTerminalInitialize(c);
       tallyBoxWebServerInitialize(c);
       break;
 
@@ -250,7 +250,7 @@ static void stateRunningPeerNetwork(tallyBoxConfig_t& c, uint8_t *internalState)
   uint16_t greenChannel, redChannel;
   bool inTransition;
 
-  if(peerNetworkReceive(greenChannel, redChannel, inTransition))
+  if(peerNetworkReceive(c, greenChannel, redChannel, inTransition))
   {
     setTallySignals(c, greenChannel, redChannel, inTransition);
     lastReceivedMasterMessageInTicks = cumulativeTickCounter;
@@ -419,14 +419,14 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   /*update main output: Red&Green tally lights*/
   DEBUG_PULSE_START(DIAG_LED_LOOP_TALLY_OUTPUT);
-  outputUpdate(currentTick, tallyDataIsValid(), tallyPreview, tallyProgram, tallyInTransition);
+  outputUpdate(c, currentTick, tallyDataIsValid(), tallyPreview, tallyProgram, tallyInTransition);
   DEBUG_PULSE_STOP(DIAG_LED_LOOP_TALLY_OUTPUT);
 
   /*update diagnostic led to indicate running state*/
   updateLed(currentTick);
 
   /*run terminal here*/
-  tallyBoxTerminalUpdate();
+  tallyBoxTerminalUpdate(c);
 
   /*run webserver here*/
   DEBUG_PULSE_START(DIAG_LED_LOOP_WEB_SERVER);

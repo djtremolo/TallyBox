@@ -101,7 +101,7 @@ static uint16_t getBufLength(uint8_t* ptrFirst, uint8_t* ptrAfterLast)
   return len;
 }
 
-static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, bool inTransition, uint8_t *buf, uint16_t maxLen)
+static uint16_t peerNetworkSerialize(tallyBoxConfig_t& c, uint16_t& grn, uint16_t& red, bool inTransition, uint8_t *buf, uint16_t maxLen)
 {
   uint16_t ret = 0;
   const uint16_t headerSize = 7;
@@ -130,7 +130,7 @@ static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, bool inTransi
     uint16_t bsmChannel;
     uint16_t greenBrightness;
     uint16_t redBrightness;
-    getOutputTxData(bsmEnabled, bsmCounter, bsmChannel, greenBrightness, redBrightness);
+    getOutputTxData(c, bsmEnabled, bsmCounter, bsmChannel, greenBrightness, redBrightness);
     putU8(&p, bsmEnabled);
     putU16(&p, bsmCounter);
     putU16(&p, bsmChannel);
@@ -151,7 +151,7 @@ static uint16_t peerNetworkSerialize(uint16_t& grn, uint16_t& red, bool inTransi
   return ret;
 }
 
-static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, bool& inTransition, uint8_t *buf, uint16_t len)
+static bool peerNetworkDeSerialize(tallyBoxConfig_t& c, uint16_t& grn, uint16_t& red, bool& inTransition, uint8_t *buf, uint16_t len)
 {
   bool ret = false;
   const uint16_t headerSize = 7;
@@ -183,7 +183,7 @@ static bool peerNetworkDeSerialize(uint16_t& grn, uint16_t& red, bool& inTransit
           uint16_t bsmChannel = getU16(&p);
           uint16_t greenBrightness = getU16(&p);
           uint16_t redBrightness = getU16(&p);
-          putOutputRxData(bsmEnabled, bsmCounter, bsmChannel, greenBrightness, redBrightness);
+          putOutputRxData(c, bsmEnabled, bsmCounter, bsmChannel, greenBrightness, redBrightness);
 
           inTransition = getU8(&p);
 
@@ -233,7 +233,7 @@ void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redCha
 {
   uint8_t buf[32];
 
-  uint16_t bufLen = peerNetworkSerialize(greenChannel, redChannel, inTransition, buf, sizeof(buf));
+  uint16_t bufLen = peerNetworkSerialize(c, greenChannel, redChannel, inTransition, buf, sizeof(buf));
   if(bufLen > 0)
   {
     Udp.beginPacket(IPAddress(0,0,0,0), 7493);
@@ -242,7 +242,7 @@ void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redCha
   }
 }
 
-bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel, bool& inTransition)
+bool peerNetworkReceive(tallyBoxConfig_t& c, uint16_t& greenChannel, uint16_t& redChannel, bool& inTransition)
 {
   bool ret = false;
 
@@ -255,7 +255,7 @@ bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel, bool& inTr
     uint16_t tmpRed;
     bool tmpInTransition;
 
-    if(peerNetworkDeSerialize(tmpGreen, tmpRed, tmpInTransition, buf, packetSize))
+    if(peerNetworkDeSerialize(c, tmpGreen, tmpRed, tmpInTransition, buf, packetSize))
     {
       greenChannel = tmpGreen;
       redChannel = tmpRed;

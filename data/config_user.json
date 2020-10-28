@@ -2,8 +2,8 @@
   "sizeOfConfiguration": 16,
   "versionOfConfiguration": 1,
   "cameraId": 1,
-  "greenBrightnessValue": 511,
-  "redBrightnessValue": 511,
+  "greenBrightnessPercent": 511,
+  "redBrightnessPercent": 511,
   "isMaster": true,
   "checkSum": 40435522
 }

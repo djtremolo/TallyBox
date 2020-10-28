@@ -36,8 +36,8 @@ typedef struct
   uint8_t versionOfConfiguration;
 
   uint16_t cameraId;
-  uint16_t greenBrightnessValue;
-  uint16_t redBrightnessValue;
+  float greenBrightnessPercent;
+  float redBrightnessPercent;
   bool isMaster;
 
   /*must be last*/

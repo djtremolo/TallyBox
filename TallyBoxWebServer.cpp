@@ -7,6 +7,7 @@
 #include "TallyBoxWebServer.hpp"
 #include "TallyBoxOutput.hpp"
 #include <malloc.h>
+#include <math.h>
 
 static FS* filesystem = &LittleFS;
 
@@ -218,21 +219,18 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
     }
     fileHasBeenRead = true;
   }
-  
+
+
+  Serial.println("file was read");
+
   if(useServerArgs)
   {
+    Serial.println("parsing arguments");
+
     c.user.isMaster = (server.arg("connectionType") == "master");
     c.user.cameraId = (uint16_t)(server.arg("cameraId").toInt());
-        
-    float gPct = server.arg("greenBrightnessPercent").toFloat();
-    float rPct = server.arg("redBrightnessPercent").toFloat();
-
-    c.user.greenBrightnessValue = (gPct * 1023.0) / 100.0;
-    c.user.redBrightnessValue = (rPct * 1023.0) / 100.0;
-
-
-    setOutputBrightness((uint16_t)gPct, OUTPUT_GREEN);
-    setOutputBrightness((uint16_t)rPct, OUTPUT_RED);
+    c.user.greenBrightnessPercent = round(server.arg("greenBrightnessPercent").toFloat());
+    c.user.redBrightnessPercent = round(server.arg("redBrightnessPercent").toFloat());
 
     if(server.arg("verify") == "on")
     {
@@ -240,20 +238,36 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
     }
   }
 
-  float greenPercent = (((float)c.user.greenBrightnessValue)*100.0) / 1023.0;
-  float redPercent = (((float)c.user.redBrightnessValue)*100.0) / 1023.0;
+  Serial.println("buf from stack");
 
-  char myBuf[MAX_HTML_FILE_SIZE] = "";
+  //char myBuf[MAX_HTML_FILE_SIZE] = "";
+  char *myBuf = (char*)malloc(MAX_HTML_FILE_SIZE);
 
-  snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
-          (c.user.isMaster ? "checked" : ""),
-          (c.user.isMaster ? "" : "checked"),
-          c.user.cameraId,
-          (uint16_t)greenPercent,
-          (uint16_t)redPercent,
-          (validated?"enabled":"disabled"));
+  if(myBuf)
+  {
+    Serial.println("filling in web page");
 
-  server.send(200, "text/html", myBuf);
+    snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+            (c.user.isMaster ? "checked" : ""),
+            (c.user.isMaster ? "" : "checked"),
+            c.user.cameraId,
+            (uint16_t)round(c.user.greenBrightnessPercent),
+            (uint16_t)round(c.user.redBrightnessPercent),
+            (validated?"enabled":"disabled"));
+
+    Serial.println("sending to server");
+
+    Serial.println(myBuf);
+
+    server.send(200, "text/html", myBuf);
+
+    free(myBuf);
+  }
+  else
+  {
+    Serial.println("malloc failed");
+    server.send(404, "text/html", "malloc failed");
+  }
   return true;
 }
 
@@ -296,7 +310,7 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
           (c.user.isMaster ? "checked" : ""),
           (c.user.isMaster ? "" : "checked"),
           c.user.cameraId,
-          c.user.greenBrightnessValue,
+          c.user.greenBrightnessPercent,
           (uint16_t)greenPercent,
           (uint16_t)redPercent,
           (validated?"enabled":"disabled"));

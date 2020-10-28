@@ -6,6 +6,6 @@
 
 void peerNetworkInitialize(uint16_t localPort);
 void peerNetworkSend(tallyBoxConfig_t& c, uint16_t greenChannel, uint16_t redChannel, bool inTransition);
-bool peerNetworkReceive(uint16_t& greenChannel, uint16_t& redChannel, bool& inTransition);
+bool peerNetworkReceive(tallyBoxConfig_t& c, uint16_t& greenChannel, uint16_t& redChannel, bool& inTransition);
 
 #endif

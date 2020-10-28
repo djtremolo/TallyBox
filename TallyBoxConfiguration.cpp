@@ -77,8 +77,8 @@ void setDefaults(tallyBoxUserConfig_t& c)
   c.versionOfConfiguration = TALLYBOX_CONFIGURATION_VERSION;
 
   c.cameraId = TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID;
-  c.greenBrightnessValue = DEFAULT_GREEN_BRIGHTNESS;
-  c.redBrightnessValue = DEFAULT_RED_BRIGHTNESS;
+  c.greenBrightnessPercent = DEFAULT_GREEN_BRIGHTNESS_PCT;
+  c.redBrightnessPercent = DEFAULT_RED_BRIGHTNESS_PCT;
   c.isMaster = TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER; 
 
   c.checkSum = calcChecksum(c);
@@ -106,8 +106,8 @@ void dumpConf(String confName, tallyBoxUserConfig_t& c)
   Serial.println(" - Size               = "+String(c.sizeOfConfiguration));
 
   Serial.println(" - Camera ID          = "+String(c.cameraId));
-  Serial.println(" - Green Brightness   = "+String(c.greenBrightnessValue));
-  Serial.println(" - Red Brightness     = "+String(c.redBrightnessValue));
+  Serial.println(" - Green Brightness   = "+String(c.greenBrightnessPercent));
+  Serial.println(" - Red Brightness     = "+String(c.redBrightnessPercent));
   Serial.println(" - Master Device      = "+String(c.isMaster));
 
   Serial.print(" - Checksum           = 0x");
@@ -260,8 +260,8 @@ void serializeToByteArray(tallyBoxUserConfig_t& c, char* jsonBuf, size_t maxByte
   doc["sizeOfConfiguration"] = c.sizeOfConfiguration;
   doc["versionOfConfiguration"] = c.versionOfConfiguration;
   doc["cameraId"] = c.cameraId;
-  doc["greenBrightnessValue"] = c.greenBrightnessValue;
-  doc["redBrightnessValue"] = c.redBrightnessValue;
+  doc["greenBrightnessPercent"] = c.greenBrightnessPercent;
+  doc["redBrightnessPercent"] = c.redBrightnessPercent;
   doc["isMaster"] = c.isMaster;
   doc["checkSum"] = c.checkSum;
 
@@ -314,8 +314,8 @@ bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf)
     c.versionOfConfiguration = doc["versionOfConfiguration"];
 
     c.cameraId = doc["cameraId"];
-    c.greenBrightnessValue = doc["greenBrightnessValue"];
-    c.redBrightnessValue = doc["redBrightnessValue"];
+    c.greenBrightnessPercent = doc["greenBrightnessPercent"];
+    c.redBrightnessPercent = doc["redBrightnessPercent"];
     c.isMaster = doc["isMaster"];
     
     c.checkSum = doc["checkSum"];

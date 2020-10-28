@@ -10,31 +10,38 @@ static bool brightnessSettingModeEnabled = false;
 static uint16_t brightnessSettingModeCounter = 0;
 static tallyBoxOutput_t brightnessSettingModeChannel;
 
-static uint16_t myGreenBrightnessValue = DEFAULT_GREEN_BRIGHTNESS;
-static uint16_t myRedBrightnessValue = DEFAULT_RED_BRIGHTNESS;
-
 void setOutputState(tallyBoxOutput_t ch, bool outputState);
 bool getOutputState(tallyBoxOutput_t ch);
 void setOutputBrightness(uint16_t percent);
 
-void getOutputTxData(uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness)
+uint16_t convertBrightnessValueToRaw(float percent)
+{
+  return (uint16_t)((percent * (float)MAX_BRIGHTNESS) / 100.0);
+}
+
+float convertBrightnessValueToPercent(uint16_t raw)
+{
+  return (float)((100.0 * (float)raw) / (float)MAX_BRIGHTNESS);
+}
+
+void getOutputTxData(tallyBoxConfig_t& c, uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness)
 {
   /*PeerNetwork master: sending out data to slaves*/
   bsmEnabled = (uint8_t)brightnessSettingModeEnabled;
   bsmCounter = brightnessSettingModeCounter;  /*10 us ticks -> 1000 = 10 seconds*/
   bsmChannel = (uint16_t)brightnessSettingModeChannel;
-  greenBrightness = myGreenBrightnessValue;
-  redBrightness = myRedBrightnessValue;
+  greenBrightness = convertBrightnessValueToRaw(c.user.greenBrightnessPercent); /*send as raw*/
+  redBrightness = convertBrightnessValueToRaw(c.user.redBrightnessPercent); /*send as raw*/
 }
 
-void putOutputRxData(uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness)
+void putOutputRxData(tallyBoxConfig_t& c, uint8_t& bsmEnabled, uint16_t& bsmCounter, uint16_t& bsmChannel, uint16_t& greenBrightness, uint16_t& redBrightness)
 {
   /*PeerNetwork slave: receiving data from master*/
   brightnessSettingModeEnabled = (bool)bsmEnabled;
   brightnessSettingModeCounter = bsmCounter;  /*10 us ticks -> 1000 = 10 seconds*/
   brightnessSettingModeChannel = (tallyBoxOutput_t)bsmChannel;
-  myGreenBrightnessValue = greenBrightness;
-  myRedBrightnessValue = redBrightness;
+  c.user.greenBrightnessPercent = convertBrightnessValueToPercent(greenBrightness);
+  c.user.greenBrightnessPercent = convertBrightnessValueToPercent(redBrightness);
 }
 
 void setBrightnessSettingMode(tallyBoxOutput_t ch, bool enable)
@@ -62,7 +69,6 @@ bool getBrightnessSettingMode(tallyBoxOutput_t& ch)
   return ret;
 }
 
-
 void setOutputState(tallyBoxOutput_t ch, bool outputState)
 {
   switch(ch)
@@ -81,48 +87,6 @@ void setOutputState(tallyBoxOutput_t ch, bool outputState)
 bool getOutputState(tallyBoxOutput_t ch)
 {
   return ((ch==OUTPUT_GREEN) ? myGreenState : myRedState);
-}
-
-void setOutputBrightness(uint16_t percent)
-{
-  setOutputBrightness(percent, OUTPUT_GREEN);
-  setOutputBrightness(percent, OUTPUT_RED);
-}
-
-void setOutputBrightness(uint16_t percent, tallyBoxOutput_t ch)
-{
-  uint16_t aoValue = map(percent, 0, 100, 0, MAX_BRIGHTNESS);
-
-  switch(ch)
-  {
-    case OUTPUT_GREEN: 
-      myGreenBrightnessValue = aoValue;
-      break;
-    case OUTPUT_RED: 
-      myRedBrightnessValue = aoValue;
-      break;
-    default:
-      break;
-  }
-}
-
-uint16_t getOutputBrightness(tallyBoxOutput_t ch)
-{
-  uint16_t raw = (ch==OUTPUT_GREEN ? myGreenBrightnessValue : myRedBrightnessValue);
-  uint16_t percent = map(raw, 0, MAX_BRIGHTNESS, 0, 100);
-
-  return percent;
-}
-
-void outputUpdate(uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram, bool inTransition)
-{
-  if(dataIsValid)
-  {
-    setOutputState(OUTPUT_GREEN, tallyPreview);
-    setOutputState(OUTPUT_RED, tallyProgram);
-  }
-  
-  outputUpdate(currentTick, dataIsValid, inTransition);
 }
 
 static void getWarningLevels(uint16_t currentTick, int32_t& greenLevel, int32_t& redLevel)
@@ -150,7 +114,7 @@ static void getWarningLevels(uint16_t currentTick, int32_t& greenLevel, int32_t&
   }
 }
 
-bool handleBrightnessSettingMode()
+bool handleBrightnessSettingMode(tallyBoxConfig_t& c)
 {
   bool skipRealOutput = false;
   
@@ -169,14 +133,14 @@ bool handleBrightnessSettingMode()
         case OUTPUT_NONE:
           break;
         case OUTPUT_GREEN:
-          testG = myGreenBrightnessValue;
+          testG = convertBrightnessValueToRaw(c.user.greenBrightnessPercent);
           break;
         case OUTPUT_RED:
-          testR = myRedBrightnessValue;
+          testR = convertBrightnessValueToRaw(c.user.redBrightnessPercent);
           break;
         case OUTPUT_LINKED:
-          testG = myGreenBrightnessValue;
-          testR = myRedBrightnessValue;
+          testG = convertBrightnessValueToRaw(c.user.greenBrightnessPercent);
+          testR = convertBrightnessValueToRaw(c.user.redBrightnessPercent);
           break;
       }
 
@@ -197,9 +161,20 @@ bool handleBrightnessSettingMode()
   return skipRealOutput;
 }
 
-void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition)
+void outputUpdate(tallyBoxConfig_t& c, uint16_t currentTick, bool dataIsValid, bool tallyPreview, bool tallyProgram, bool inTransition)
 {
-  if(handleBrightnessSettingMode())
+  if(dataIsValid)
+  {
+    setOutputState(OUTPUT_GREEN, tallyPreview);
+    setOutputState(OUTPUT_RED, tallyProgram);
+  }
+  
+  outputUpdate(c, currentTick, dataIsValid, inTransition);
+}
+
+void outputUpdate(tallyBoxConfig_t& c, uint16_t currentTick, bool dataIsValid, bool inTransition)
+{
+  if(handleBrightnessSettingMode(c))
   {
     /*we are in the mode that visualizes the brightness setting*/
     return;
@@ -214,7 +189,7 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition)
       {
         /*while in transition - either on program/preview - we are actually in program, so let's show RED*/
         analogWrite(PIN_GREEN, 0);
-        analogWrite(PIN_RED, myRedBrightnessValue);
+        analogWrite(PIN_RED, convertBrightnessValueToRaw(c.user.redBrightnessPercent));
       }
       else
       {
@@ -226,8 +201,8 @@ void outputUpdate(uint16_t currentTick, bool dataIsValid, bool inTransition)
     else
     {
       /*NORMAL case:*/
-      analogWrite(PIN_GREEN, (myGreenState ? myGreenBrightnessValue : 0));
-      analogWrite(PIN_RED, (myRedState ? myRedBrightnessValue : 0));
+      analogWrite(PIN_GREEN, (myGreenState ? convertBrightnessValueToRaw(c.user.greenBrightnessPercent) : 0));
+      analogWrite(PIN_RED, (myRedState ? convertBrightnessValueToRaw(c.user.redBrightnessPercent) : 0));
     }
   }
   else
