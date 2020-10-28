@@ -1,0 +1,114 @@
+<html>
+  <head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>TallyBox</title>
+    <style>
+      body {
+        background-color: #cccccc;
+        font-family: Arial, Helvetica, Sans-Serif;
+        color: #000088;
+        width: 100%;
+        height: 100%;
+      }
+      div.container {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TallyBox Network Configuration</h1>
+    <a href="index.htm">Back to main page</a>
+    <br/>
+    <br/>
+    <div class='container'>
+      <form action='config_network.htm' method='post'>
+        <label>Wifi SSID</label><br />
+        <input
+          type='text'
+          name='wifiSSID'
+          value='%s'
+          size='15'
+          maxlength='20'
+        /><br />
+        <label>Wifi Password</label><br />
+        <input
+          type='password'
+          name='wifiPassword'
+          value='%s'
+          size='15'
+          maxlength='20'
+        /><br />
+        <br/>
+        <br/>
+        <label>Static IP address</label><br />
+        <input
+          type='checkbox'
+          name='staticIpInUse'
+          value='%s'
+          %s
+        /><br />
+        <label>Own IP</label><br />
+        <input
+          type='text'
+          name='ownIp'
+          value='%s'
+          size='15'
+          maxlength='15'
+        /><br />
+        <label>Subnet Mask</label><br />
+        <input
+          type='text'
+          name='ownIp'
+          value='%s'
+          size='15'
+          maxlength='15'
+        /><br />
+        <label>Default Gateway</label><br />
+        <input
+          type='text'
+          name='ownIp'
+          value='%s'
+          size='15'
+          maxlength='15'
+        /><br />
+        <br />
+        <br/>
+        <label>MDNS Host Name</label><br />
+        <input
+          type='text'
+          name='mDnsHostName'
+          value='%s'
+          size='20'
+          maxlength='20'
+        /><br />
+        <br />
+        <br/>
+        <label>ATEM Host IP</label><br />
+        <input
+          type='text'
+          name='hostIp'
+          value='%s'
+          size='15'
+          maxlength='15'
+        /><br />
+        <br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='submit'
+          value='Verify'
+          id='verify'
+        /><br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='submit'
+          value='Store parameters'
+          id='store'
+          %s
+        /><br />
+      </form>
+    </div>
+  </body>
+</html>

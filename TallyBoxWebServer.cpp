@@ -207,8 +207,6 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
     path += "config_user.htm";
   }
 
-  delay(1);
-
   String contentType = getContentType(path);
 
   if(!fileHasBeenRead)
@@ -220,14 +218,9 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
     }
     fileHasBeenRead = true;
   }
-
-  delay(1);
-
-  Serial.println("file opened");
   
   if(useServerArgs)
   {
-    Serial.println("parsing server args");
     c.user.isMaster = (server.arg("connectionType") == "master");
     c.user.cameraId = (uint16_t)(server.arg("cameraId").toInt());
         
@@ -250,12 +243,7 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
   float greenPercent = (((float)c.user.greenBrightnessValue)*100.0) / 1023.0;
   float redPercent = (((float)c.user.redBrightnessValue)*100.0) / 1023.0;
 
-#if 1
   char myBuf[MAX_HTML_FILE_SIZE] = "";
-
-  Serial.println("filling in web page");
-
-  delay(1);
 
   snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
           (c.user.isMaster ? "checked" : ""),
@@ -265,18 +253,7 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
           (uint16_t)redPercent,
           (validated?"enabled":"disabled"));
 
-
-  Serial.println("sending via server");
-
-  Serial.println(myBuf);
-
-  delay(1);
-
-
   server.send(200, "text/html", myBuf);
-#else
-  server.send(200, "text/html", bufContent);
-#endif
   return true;
 }
 

@@ -1,0 +1,91 @@
+<html>
+  <head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>TallyBox</title>
+    <style>
+      body {
+        background-color: #cccccc;
+        font-family: Arial, Helvetica, Sans-Serif;
+        color: #000088;
+        width: 100%;
+        height: 100%;
+      }
+      div.container {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TallyBox User Settings</h1>
+    <a href='index.htm'>Back to main page</a>
+    <br/>
+    <br/>
+    <div class='container'>
+      <form action='config_user.htm' method='post'>
+        <label>Connection Type</label><br />
+        <input
+          type='radio'
+          name='connectionType'
+          id='master'
+          %s
+        />
+        <label for='master'>Master: Connect to ATEM board and act as PeerNetwork host</label>
+        <br />
+        <input
+          type='radio'
+          name='connectionType'
+          id='follower'
+          %s
+        />
+        <label for='follower'>Follower: Connect to PeerNetwork host</label>
+        <br />
+        <br />
+        <label>Camera ID</label><br />
+        <input
+          type='number'
+          name='cameraId'
+          value='%u'
+          min=1
+          max=9999
+        /><br />
+        <br />
+        <br />
+        <label>Green Brightness in percent</label><br />
+        <input
+          type='number'
+          name='greenBrightnessPercent'
+          value='%u'
+          min='0'
+          max='100'
+        /><br />
+        <label>Red Brightness in percent</label><br />
+        <input
+          type='number'
+          name='redBrightnessPercent'
+          value='%u'
+          min='0'
+          max='100'
+        /><br />
+        <br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='submit'
+          value='Verify'
+          id='verify'
+          enabled
+        />
+        <br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='submit'
+          value='Store parameters'
+          id='store'
+          %s
+        /><br />
+      </form>
+    </div>
+  </body>
+</html>
