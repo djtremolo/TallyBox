@@ -1,0 +1,25 @@
+body 
+{
+    margin: auto;
+    background-color: #cccccc;
+    font-family: Arial, Helvetica, Sans-Serif;
+    color: #000088;
+    width: 90%;
+    height: auto;        
+}
+div.titlebar 
+{
+    margin: auto;
+    width: 90%;
+    height: auto;
+    background-color: #d6d6d6;
+    text-align: center;
+}
+div.container 
+{
+    margin: auto;
+    width: 90%;
+    height: auto;
+    background-color: #d6d6d6;
+    text-align: center;
+}

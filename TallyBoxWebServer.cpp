@@ -168,7 +168,7 @@ bool getRawHtm(const char* fileName, char *bufContent, size_t maxLen)
 }
 
 
-#define MAX_HTML_FILE_SIZE    3000
+#define MAX_HTML_FILE_SIZE    4000
 
 bool handleIndexHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
   static bool fileHasBeenRead = false;
