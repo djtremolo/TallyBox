@@ -168,7 +168,7 @@ bool getRawHtm(const char* fileName, char *bufContent, size_t maxLen)
 }
 
 
-#define MAX_HTML_FILE_SIZE    2200
+#define MAX_HTML_FILE_SIZE    3000
 
 bool handleIndexHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
   static bool fileHasBeenRead = false;
@@ -220,13 +220,8 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
     fileHasBeenRead = true;
   }
 
-
-  Serial.println("file was read");
-
   if(useServerArgs)
   {
-    Serial.println("parsing arguments");
-
     c.user.isMaster = (server.arg("connectionType") == "master");
     c.user.cameraId = (uint16_t)(server.arg("cameraId").toInt());
     c.user.greenBrightnessPercent = round(server.arg("greenBrightnessPercent").toFloat());
@@ -238,15 +233,11 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
     }
   }
 
-  Serial.println("buf from stack");
-
-  //char myBuf[MAX_HTML_FILE_SIZE] = "";
+  /*allocate buffer for final html*/
   char *myBuf = (char*)malloc(MAX_HTML_FILE_SIZE);
 
   if(myBuf)
   {
-    Serial.println("filling in web page");
-
     snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
             (c.user.isMaster ? "checked" : ""),
             (c.user.isMaster ? "" : "checked"),
@@ -254,10 +245,6 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
             (uint16_t)round(c.user.greenBrightnessPercent),
             (uint16_t)round(c.user.redBrightnessPercent),
             (validated?"enabled":"disabled"));
-
-    Serial.println("sending to server");
-
-    Serial.println(myBuf);
 
     server.send(200, "text/html", myBuf);
 
@@ -287,15 +274,23 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
   {
     return false;
   }
-
   
   if(useServerArgs)
   {
     strcpy(c.network.wifiSSID, server.arg("wifiSSID").c_str());
     strcpy(c.network.wifiPasswd, server.arg("wifiPassword").c_str());
-    IPAddress ip;
-    ip.fromString(server.arg("hostIp"));
-    c.network.hostAddressU32 = ip.v4();
+
+    String ha = server.arg("hostAddress");
+    c.network.hostAddress.fromString(ha);
+
+    String oa = server.arg("ownAddress");
+    c.network.ownAddress.fromString(oa);
+
+    String snm = server.arg("subnetMask");
+    c.network.subnetMask.fromString(snm);
+
+    String dg = server.arg("defaultGateway");
+    c.network.defaultGateway.fromString(dg);
 
     if(server.arg("verify") == "on")
     {
@@ -303,19 +298,31 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
     }
   }
 
-  char myBuf[MAX_HTML_FILE_SIZE] = "";
+  /*allocate buffer for final html*/
+  char *myBuf = (char*)malloc(MAX_HTML_FILE_SIZE);
 
-#if 0
-  snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
-          (c.user.isMaster ? "checked" : ""),
-          (c.user.isMaster ? "" : "checked"),
-          c.user.cameraId,
-          c.user.greenBrightnessPercent,
-          (uint16_t)greenPercent,
-          (uint16_t)redPercent,
-          (validated?"enabled":"disabled"));
-#endif
-  server.send(200, "text/html", myBuf);
+  if(myBuf)
+  {
+    snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+            c.network.wifiSSID,
+            c.network.wifiPasswd,
+            c.network.hostAddress.toString().c_str(),
+            (c.network.hasStaticIp ? "checked" : ""),
+            c.network.ownAddress.toString().c_str(),
+            c.network.subnetMask.toString().c_str(),
+            c.network.defaultGateway.toString().c_str(),
+            c.network.mdnsHostName,
+            (validated ? "enabled" : "disabled"));
+
+    server.send(200, "text/html", myBuf);
+    free(myBuf);
+  }
+  else
+  {
+    Serial.println("malloc failed");
+    server.send(404, "text/html", "malloc failed");
+  }
+
   return true;
 }
 
@@ -444,6 +451,18 @@ void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
 
   server.on("/config_user.htm", HTTP_POST, [&]() {
     if (!handleConfigUserHtm(c, server, true)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/config_network.htm", HTTP_GET, [&]() {
+    if (!handleConfigNetworkHtm(c, server, false)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/config_network.htm", HTTP_POST, [&]() {
+    if (!handleConfigNetworkHtm(c, server, true)) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });

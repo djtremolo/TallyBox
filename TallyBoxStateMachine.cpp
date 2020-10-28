@@ -151,7 +151,7 @@ static void stateConnectingToAtemHost(tallyBoxConfig_t& c, uint8_t *internalStat
   switch(internalState[CONNECTING_TO_ATEM_HOST])
   {
     case 0:
-      AtemSwitcher.begin(IPAddress(c.network.hostAddressU32));
+      AtemSwitcher.begin(c.network.hostAddress);
       AtemSwitcher.serialOutput(0x80);
       AtemSwitcher.connect();
       internalState[CONNECTING_TO_ATEM_HOST] = 1;

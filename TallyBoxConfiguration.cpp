@@ -52,23 +52,22 @@ void setDefaults(tallyBoxNetworkConfig_t& c)
   strcpy(c.wifiSSID, TALLYBOX_CONFIGURATION_DEFAULT_SSID);
   strcpy(c.wifiPasswd, TALLYBOX_CONFIGURATION_DEFAULT_PASSWD);
 
-  IPAddress hostIp(TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE0,
-                TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE1,
-                TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE2,
-                TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP_BYTE3);
-  c.hostAddressU32 = hostIp.v4();
+  IPAddress ip;
+  ip.fromString(String(TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP));
+  c.hostAddress = ip;
 
-  IPAddress ownIp(TALLYBOX_CONFIGURATION_DEFAULT_OWNIP_BYTE0,
-                TALLYBOX_CONFIGURATION_DEFAULT_OWNIP_BYTE1,
-                TALLYBOX_CONFIGURATION_DEFAULT_OWNIP_BYTE2,
-                TALLYBOX_CONFIGURATION_DEFAULT_OWNIP_BYTE3);
-  c.ownAddressU32 = ownIp.v4();
+  ip.fromString(String(TALLYBOX_CONFIGURATION_DEFAULT_OWNIP));
+  c.ownAddress = ip;
+
+  ip.fromString(String(TALLYBOX_CONFIGURATION_DEFAULT_SUBNET));
+  c.subnetMask = ip;
+
+  ip.fromString(String(TALLYBOX_CONFIGURATION_DEFAULT_GATEWAY));
+  c.defaultGateway = ip;
 
   c.hasStaticIp = TALLYBOX_CONFIGURATION_DEFAULT_HASOWNIP; 
 
   strcpy(c.mdnsHostName, "tallybox");
-
-  c.checkSum = calcChecksum(c);
 }
 
 void setDefaults(tallyBoxUserConfig_t& c)
@@ -80,8 +79,6 @@ void setDefaults(tallyBoxUserConfig_t& c)
   c.greenBrightnessPercent = DEFAULT_GREEN_BRIGHTNESS_PCT;
   c.redBrightnessPercent = DEFAULT_RED_BRIGHTNESS_PCT;
   c.isMaster = TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER; 
-
-  c.checkSum = calcChecksum(c);
 }
 
 void dumpConf(String confName, tallyBoxNetworkConfig_t& c)
@@ -89,14 +86,13 @@ void dumpConf(String confName, tallyBoxNetworkConfig_t& c)
   Serial.println("Configuration: '" + confName + "'.");
   Serial.println(" - Version            = "+String(c.versionOfConfiguration));
   Serial.println(" - Size               = "+String(c.sizeOfConfiguration));
-  Serial.print(" - HostAddress        = ");
-  IPAddress ip(c.hostAddressU32);
-  Serial.println(ip);
+  Serial.println(" - ATEM Host IP       = "+c.hostAddress.toString());
+  Serial.println(" - Own IP             = "+c.ownAddress.toString());
+  Serial.println(" - Subnet mask        = "+c.subnetMask.toString());
+  Serial.println(" - Default gateway    = "+c.defaultGateway.toString());
   Serial.print(" - WifiSSID           = ");
   Serial.println(c.wifiSSID);
   Serial.println(" - Password           = <not shown>");
-  Serial.print(" - Checksum           = 0x");
-  Serial.println(c.checkSum, HEX);
 }
 
 void dumpConf(String confName, tallyBoxUserConfig_t& c)
@@ -106,24 +102,11 @@ void dumpConf(String confName, tallyBoxUserConfig_t& c)
   Serial.println(" - Size               = "+String(c.sizeOfConfiguration));
 
   Serial.println(" - Camera ID          = "+String(c.cameraId));
-  Serial.println(" - Green Brightness   = "+String(c.greenBrightnessPercent));
-  Serial.println(" - Red Brightness     = "+String(c.redBrightnessPercent));
+  Serial.println(" - Green Brightness   = "+String(c.greenBrightnessPercent, 0)+"%");
+  Serial.println(" - Red Brightness     = "+String(c.redBrightnessPercent, 0)+"%");
   Serial.println(" - Master Device      = "+String(c.isMaster));
-
-  Serial.print(" - Checksum           = 0x");
-  Serial.println(c.checkSum, HEX);
 }
 
-
-template <typename T>
-uint32_t calcChecksum(T& c)
-{
-  Arduino_CRC32 crc32;
-  uint16_t lenToCheck = sizeof(T) - sizeof(c.checkSum);
-  uint8_t *buf = (uint8_t*)&c;
-
-  return crc32.calc(buf, lenToCheck);
-}
 
 template <typename T>
 bool validateConfiguration(T& c)
@@ -133,15 +116,7 @@ bool validateConfiguration(T& c)
   {
     if(c.sizeOfConfiguration == sizeof(T))
     {
-      /*check CRC but allow manual editing by setting the crc to a magic value*/
-      if((c.checkSum == calcChecksum(c)) || (c.checkSum == 12345678))
-      {
-        ret = true;
-      }
-      else
-      {
-        Serial.println("validateConfiguration: CRC check failed");
-      }
+      ret = true;
     }
     else
     {
@@ -241,11 +216,12 @@ void serializeToByteArray(tallyBoxNetworkConfig_t& c, char* jsonBuf, size_t maxB
   doc["versionOfConfiguration"] = c.versionOfConfiguration;
   doc["wifiSSID"] = String(c.wifiSSID);
   doc["wifiPasswd"] = String(c.wifiPasswd);
-  doc["hostAddressU32"] = c.hostAddressU32;
-  doc["ownAddressU32"] = c.ownAddressU32;
+  doc["hostAddress"] = c.hostAddress.toString();
+  doc["ownAddress"] = c.ownAddress.toString();
+  doc["subnetMask"] = c.subnetMask.toString();
+  doc["defaultGateway"] = c.defaultGateway.toString();
   doc["hasStaticIp"] = c.hasStaticIp;
   doc["mdnsHostName"] = String(c.mdnsHostName);
-  doc["checkSum"] = c.checkSum;
 
   serializeJsonPretty(doc, jsonBuf, maxBytes);
 
@@ -263,7 +239,6 @@ void serializeToByteArray(tallyBoxUserConfig_t& c, char* jsonBuf, size_t maxByte
   doc["greenBrightnessPercent"] = c.greenBrightnessPercent;
   doc["redBrightnessPercent"] = c.redBrightnessPercent;
   doc["isMaster"] = c.isMaster;
-  doc["checkSum"] = c.checkSum;
 
   serializeJsonPretty(doc, jsonBuf, maxBytes);
 
@@ -288,12 +263,22 @@ bool deSerializeFromJson(tallyBoxNetworkConfig_t& c, char* jsonBuf)
     strncpy(c.wifiSSID, ssid.c_str(), CONF_NETWORK_NAME_LEN_SSID);
     String pwd = doc["wifiPasswd"];
     strncpy(c.wifiPasswd, pwd.c_str(), CONF_NETWORK_NAME_LEN_PASSWD);
-    c.hostAddressU32 = doc["hostAddressU32"];
-    c.ownAddressU32 = doc["ownAddressU32"];
+
+    String ha = doc["hostAddress"];
+    c.hostAddress.fromString(ha);
+
+    String oa = doc["ownAddress"];
+    c.ownAddress.fromString(oa);
+
+    String snm = doc["subnetMask"];
+    c.subnetMask.fromString(snm);
+
+    String dg = doc["defaultGateway"];
+    c.defaultGateway.fromString(dg);
+
     c.hasStaticIp = doc["hasStaticIp"];
     String mdnshost = doc["mdnsHostName"];
     strncpy(c.mdnsHostName, mdnshost.c_str(), CONF_NETWORK_NAME_LEN_MDNS_NAME);
-    c.checkSum = doc["checkSum"];
 
     ret = true;
   }
@@ -317,8 +302,6 @@ bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf)
     c.greenBrightnessPercent = doc["greenBrightnessPercent"];
     c.redBrightnessPercent = doc["redBrightnessPercent"];
     c.isMaster = doc["isMaster"];
-    
-    c.checkSum = doc["checkSum"];
 
     ret = true;
   }
@@ -437,4 +420,10 @@ void tallyBoxConfiguration(tallyBoxConfig_t& c)
 
   /*handle user configuration part*/
   handleConfigurationRead(c.user);
+
+  Serial.println("*******************\r\nStarting with configuration:");
+  dumpConf("Network", c.network);
+  dumpConf("User", c.user);
+  Serial.println("*******************\r\n");
+
 }

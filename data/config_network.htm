@@ -4,23 +4,39 @@
     <title>TallyBox</title>
     <style>
       body {
+        margin: auto;
         background-color: #cccccc;
         font-family: Arial, Helvetica, Sans-Serif;
         color: #000088;
-        width: 100%;
-        height: 100%;
+        width: 90%;
+        height: auto;        
+      }
+      div.titlebar {
+        margin: auto;
+        width: 70%;
+        height: auto;
+        background-color: #d6d6d6;
+        text-align: center;
       }
       div.container {
-        width: 100%;
+        margin: auto;
+        width: 70%;
         height: auto;
+        background-color: #d6d6d6;
+        text-align: center;
       }
     </style>
   </head>
   <body>
-    <h1>TallyBox Network Configuration</h1>
-    <a href="index.htm">Back to main page</a>
-    <br/>
-    <br/>
+    <div class='titlebar'>
+      <h1>TallyBox Network Configuration</h1>
+      <a href="index.htm">Back to main page</a>
+      <br />
+      <br />
+      <br />
+      <br />    
+    </div>
+
     <div class='container'>
       <form action='config_network.htm' method='post'>
         <label>Wifi SSID</label><br />
@@ -30,7 +46,9 @@
           value='%s'
           size='15'
           maxlength='20'
-        /><br />
+        />
+        <br />
+        <br />
         <label>Wifi Password</label><br />
         <input
           type='password'
@@ -41,33 +59,48 @@
         /><br />
         <br/>
         <br/>
+        <label>ATEM Host IP</label><br />
+        <input
+          type='text'
+          name='hostAddress'
+          value='%s'
+          size='15'
+          maxlength='15'
+        /><br />
+        <br />
+        <br />
         <label>Static IP address</label><br />
         <input
           type='checkbox'
           name='staticIpInUse'
-          value='%s'
+          value='staticIpInUse'
           %s
-        /><br />
+        />
+        <br />
+        <br />
         <label>Own IP</label><br />
         <input
           type='text'
-          name='ownIp'
+          name='ownAddress'
           value='%s'
           size='15'
           maxlength='15'
-        /><br />
+        />
+        <br />
+        <br />
         <label>Subnet Mask</label><br />
         <input
           type='text'
-          name='ownIp'
+          name='subnetMask'
           value='%s'
           size='15'
           maxlength='15'
         /><br />
+        <br />
         <label>Default Gateway</label><br />
         <input
           type='text'
-          name='ownIp'
+          name='defaultGateway'
           value='%s'
           size='15'
           maxlength='15'
@@ -84,16 +117,6 @@
         /><br />
         <br />
         <br/>
-        <label>ATEM Host IP</label><br />
-        <input
-          type='text'
-          name='hostIp'
-          value='%s'
-          size='15'
-          maxlength='15'
-        /><br />
-        <br />
-        <br />
         <input
           type='SUBMIT'
           name='submit'
@@ -108,6 +131,8 @@
           id='store'
           %s
         /><br />
+        <br />
+        <br />
       </form>
     </div>
   </body>

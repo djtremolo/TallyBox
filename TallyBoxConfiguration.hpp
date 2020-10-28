@@ -21,13 +21,12 @@ typedef struct
 
   char wifiSSID[CONF_NETWORK_NAME_LEN_SSID+1];
   char wifiPasswd[CONF_NETWORK_NAME_LEN_PASSWD+1];
-  uint32_t hostAddressU32;
-  uint32_t ownAddressU32;
+  IPAddress hostAddress;
+  IPAddress ownAddress;
+  IPAddress subnetMask;
+  IPAddress defaultGateway;
   bool hasStaticIp;
   char mdnsHostName[CONF_NETWORK_NAME_LEN_MDNS_NAME+1];
-
-  /*must be last*/
-  uint32_t checkSum;
 } tallyBoxNetworkConfig_t;
 
 typedef struct
@@ -39,9 +38,6 @@ typedef struct
   float greenBrightnessPercent;
   float redBrightnessPercent;
   bool isMaster;
-
-  /*must be last*/
-  uint32_t checkSum;
 } tallyBoxUserConfig_t;
 
 
