@@ -120,7 +120,7 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
       Serial.println(WiFi.localIP());
       internalState[CONNECTING_TO_WIFI] = 0;
 
-      if(c.user.isMaster)
+      if(c.network.isMaster)
       {
         myState = CONNECTING_TO_ATEM_HOST;
       }

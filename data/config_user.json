@@ -1,8 +1,7 @@
 {
-  "sizeOfConfiguration": 20,
+  "sizeOfConfiguration": 16,
   "versionOfConfiguration": 1,
   "cameraId": 1,
-  "greenBrightnessPercent": 80,
-  "redBrightnessPercent": 20,
-  "isMaster": true
+  "greenBrightnessPercent": 50,
+  "redBrightnessPercent": 50
 }

@@ -16,26 +16,6 @@
 
     <div class='container'>
       <form action='config_user.htm' method='post'>
-        <label>Connection Type</label><br />
-        <input
-          type='radio'
-          name='connectionType'
-          id='master'
-          value='master'
-          %s
-        />
-        <label for='master'>Master: Connect to ATEM board</label>
-        <br />
-        <input
-          type='radio'
-          name='connectionType'
-          id='follower'
-          value='follower'
-          %s
-        />
-        <label for='follower'>Follower: Connect to PeerNetwork host</label>
-        <br />
-        <br />
         <label>Camera ID</label><br />
         <input
           type='number'
@@ -53,7 +33,9 @@
           value='%u'
           min='0'
           max='100'
+          %s
         /><br />
+        <br />
         <br />
         <label>Red Brightness in percent</label><br />
         <input
@@ -62,25 +44,23 @@
           value='%u'
           min='0'
           max='100'
-        /><br />
-        <br />
-        <br />
-        <input
-          type='SUBMIT'
-          name='submit'
-          value='Verify'
-          id='verify'
-          enabled
-        />
-        <br />
-        <br />
-        <input
-          type='SUBMIT'
-          name='submit'
-          value='Store parameters'
-          id='store'
           %s
         /><br />
+        <br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='verify'
+          value='Verify'
+        /><br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='store'
+          value='Store parameters'
+          %s
+        /><br />
+        %s
         <br />
         <br />        
       </form>

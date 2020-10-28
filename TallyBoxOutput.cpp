@@ -30,6 +30,7 @@ void getOutputTxData(tallyBoxConfig_t& c, uint8_t& bsmEnabled, uint16_t& bsmCoun
   bsmEnabled = (uint8_t)brightnessSettingModeEnabled;
   bsmCounter = brightnessSettingModeCounter;  /*10 us ticks -> 1000 = 10 seconds*/
   bsmChannel = (uint16_t)brightnessSettingModeChannel;
+
   greenBrightness = convertBrightnessValueToRaw(c.user.greenBrightnessPercent); /*send as raw*/
   redBrightness = convertBrightnessValueToRaw(c.user.redBrightnessPercent); /*send as raw*/
 }
@@ -40,8 +41,9 @@ void putOutputRxData(tallyBoxConfig_t& c, uint8_t& bsmEnabled, uint16_t& bsmCoun
   brightnessSettingModeEnabled = (bool)bsmEnabled;
   brightnessSettingModeCounter = bsmCounter;  /*10 us ticks -> 1000 = 10 seconds*/
   brightnessSettingModeChannel = (tallyBoxOutput_t)bsmChannel;
+
   c.user.greenBrightnessPercent = convertBrightnessValueToPercent(greenBrightness);
-  c.user.greenBrightnessPercent = convertBrightnessValueToPercent(redBrightness);
+  c.user.redBrightnessPercent = convertBrightnessValueToPercent(redBrightness);
 }
 
 void setBrightnessSettingMode(tallyBoxOutput_t ch, bool enable)

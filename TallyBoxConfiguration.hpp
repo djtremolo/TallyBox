@@ -21,6 +21,7 @@ typedef struct
 
   char wifiSSID[CONF_NETWORK_NAME_LEN_SSID+1];
   char wifiPasswd[CONF_NETWORK_NAME_LEN_PASSWD+1];
+  bool isMaster;
   IPAddress hostAddress;
   IPAddress ownAddress;
   IPAddress subnetMask;
@@ -37,7 +38,6 @@ typedef struct
   uint16_t cameraId;
   float greenBrightnessPercent;
   float redBrightnessPercent;
-  bool isMaster;
 } tallyBoxUserConfig_t;
 
 
@@ -47,6 +47,8 @@ typedef struct
   tallyBoxUserConfig_t user;
 } tallyBoxConfig_t;
 
+bool tallyBoxWriteConfiguration(tallyBoxNetworkConfig_t& c);
+bool tallyBoxWriteConfiguration(tallyBoxUserConfig_t& c);
 
 void tallyBoxConfiguration(tallyBoxConfig_t& c);
 

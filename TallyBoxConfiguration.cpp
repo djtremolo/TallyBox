@@ -35,7 +35,7 @@ template <typename T>
 bool configurationPut(T& c);
 
 template <typename T>
-void handleConfigurationWrite(T& c);
+void writeFactoryDefaultConfiguration(T& c);
 
 template <typename T>
 void handleConfigurationRead(T& c);
@@ -51,6 +51,8 @@ void setDefaults(tallyBoxNetworkConfig_t& c)
 
   strcpy(c.wifiSSID, TALLYBOX_CONFIGURATION_DEFAULT_SSID);
   strcpy(c.wifiPasswd, TALLYBOX_CONFIGURATION_DEFAULT_PASSWD);
+
+  c.isMaster = TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER; 
 
   IPAddress ip;
   ip.fromString(String(TALLYBOX_CONFIGURATION_DEFAULT_HOSTIP));
@@ -78,7 +80,6 @@ void setDefaults(tallyBoxUserConfig_t& c)
   c.cameraId = TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID;
   c.greenBrightnessPercent = DEFAULT_GREEN_BRIGHTNESS_PCT;
   c.redBrightnessPercent = DEFAULT_RED_BRIGHTNESS_PCT;
-  c.isMaster = TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER; 
 }
 
 void dumpConf(String confName, tallyBoxNetworkConfig_t& c)
@@ -86,7 +87,9 @@ void dumpConf(String confName, tallyBoxNetworkConfig_t& c)
   Serial.println("Configuration: '" + confName + "'.");
   Serial.println(" - Version            = "+String(c.versionOfConfiguration));
   Serial.println(" - Size               = "+String(c.sizeOfConfiguration));
+  Serial.println(" - Master Device      = "+String(c.isMaster));
   Serial.println(" - ATEM Host IP       = "+c.hostAddress.toString());
+  Serial.println(" - Uses Static IP     = "+String(c.hasStaticIp));
   Serial.println(" - Own IP             = "+c.ownAddress.toString());
   Serial.println(" - Subnet mask        = "+c.subnetMask.toString());
   Serial.println(" - Default gateway    = "+c.defaultGateway.toString());
@@ -100,11 +103,9 @@ void dumpConf(String confName, tallyBoxUserConfig_t& c)
   Serial.println("Configuration: '" + confName + "'.");
   Serial.println(" - Version            = "+String(c.versionOfConfiguration));
   Serial.println(" - Size               = "+String(c.sizeOfConfiguration));
-
   Serial.println(" - Camera ID          = "+String(c.cameraId));
   Serial.println(" - Green Brightness   = "+String(c.greenBrightnessPercent, 0)+"%");
   Serial.println(" - Red Brightness     = "+String(c.redBrightnessPercent, 0)+"%");
-  Serial.println(" - Master Device      = "+String(c.isMaster));
 }
 
 
@@ -195,8 +196,11 @@ bool configurationPut(T& c)
 
     size_t len = strlen(bufToBeStored);
 
+    Serial.println("configurationPut: preparing to write "+String(len)+" bytes.");
+
     if(f.write(bufToBeStored, len) == len)
     {
+      Serial.println("success!");
       ret = true;
     }
     else
@@ -216,6 +220,7 @@ void serializeToByteArray(tallyBoxNetworkConfig_t& c, char* jsonBuf, size_t maxB
   doc["versionOfConfiguration"] = c.versionOfConfiguration;
   doc["wifiSSID"] = String(c.wifiSSID);
   doc["wifiPasswd"] = String(c.wifiPasswd);
+  doc["isMaster"] = c.isMaster;
   doc["hostAddress"] = c.hostAddress.toString();
   doc["ownAddress"] = c.ownAddress.toString();
   doc["subnetMask"] = c.subnetMask.toString();
@@ -238,7 +243,6 @@ void serializeToByteArray(tallyBoxUserConfig_t& c, char* jsonBuf, size_t maxByte
   doc["cameraId"] = c.cameraId;
   doc["greenBrightnessPercent"] = c.greenBrightnessPercent;
   doc["redBrightnessPercent"] = c.redBrightnessPercent;
-  doc["isMaster"] = c.isMaster;
 
   serializeJsonPretty(doc, jsonBuf, maxBytes);
 
@@ -263,6 +267,8 @@ bool deSerializeFromJson(tallyBoxNetworkConfig_t& c, char* jsonBuf)
     strncpy(c.wifiSSID, ssid.c_str(), CONF_NETWORK_NAME_LEN_SSID);
     String pwd = doc["wifiPasswd"];
     strncpy(c.wifiPasswd, pwd.c_str(), CONF_NETWORK_NAME_LEN_PASSWD);
+
+    c.isMaster = doc["isMaster"];
 
     String ha = doc["hostAddress"];
     c.hostAddress.fromString(ha);
@@ -301,7 +307,6 @@ bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf)
     c.cameraId = doc["cameraId"];
     c.greenBrightnessPercent = doc["greenBrightnessPercent"];
     c.redBrightnessPercent = doc["redBrightnessPercent"];
-    c.isMaster = doc["isMaster"];
 
     ret = true;
   }
@@ -311,38 +316,16 @@ bool deSerializeFromJson(tallyBoxUserConfig_t& c, char* jsonBuf)
 
 
 template <typename T>
-void handleConfigurationWrite(T& c)
+void writeFactoryDefaultConfiguration(T& c)
 {
   const char* fName = getFileName(c);
 
   setDefaults(c);
 
-  /*avoid overwriting the data if it is already identical*/
-  T readConf;
-  bool avoidWriting = false;
-  configurationGet(readConf);
-  if(validateConfiguration(readConf))
+  if(!configurationPut(c))
   {
-    if(memcmp((void*)&c, (void*)&readConf, sizeof(T)) == 0)
-    {
-      /*identical!*/
-      avoidWriting = true;
-    }
+    Serial.println("Write FAILED!");
   }
-
-  dumpConf(fName, c);
-
-  if(!avoidWriting)
-  {
-    if(!configurationPut(c))
-    {
-      Serial.println("Write FAILED!");
-    }
-  }
-  else
-  {
-    Serial.println("<not written as the existing content was identical>");
-  }  
 }
 
 
@@ -353,11 +336,7 @@ void handleConfigurationRead(T& c)
 
   configurationGet(c);
 
-  if(validateConfiguration(c))
-  {
-    dumpConf(fName, c);
-  }
-  else
+  if(!validateConfiguration(c))
   {
     #if T == tallyBoxUserConfig_t
     Serial.printf("Loading configuration '%s' failed. Trying anyway.\r\n", fName);
@@ -368,13 +347,23 @@ void handleConfigurationRead(T& c)
   }
 }
 
-void loadDefaults(tallyBoxConfig_t& c)
+void writeFactoryDefault(tallyBoxConfig_t& c)
 {
-  handleConfigurationWrite(c.network);
-  handleConfigurationWrite(c.user);
+  writeFactoryDefaultConfiguration(c.network);
+  writeFactoryDefaultConfiguration(c.user);
 }
 
 #define BUTTON_ACTIVE   LOW
+
+bool tallyBoxWriteConfiguration(tallyBoxNetworkConfig_t& c)
+{
+  return configurationPut(c);
+}
+
+bool tallyBoxWriteConfiguration(tallyBoxUserConfig_t& c)
+{
+  return configurationPut(c);
+}
 
 void tallyBoxConfiguration(tallyBoxConfig_t& c)
 {
@@ -398,8 +387,8 @@ void tallyBoxConfiguration(tallyBoxConfig_t& c)
     /*still active after 10s?*/
     if(digitalRead(0) == BUTTON_ACTIVE)
     {
-      Serial.println("Using default configuration!");
-      loadDefaults(c);
+      Serial.println("Writing default configuration!");
+      writeFactoryDefault(c);
     }
     else
     {
@@ -412,7 +401,7 @@ void tallyBoxConfiguration(tallyBoxConfig_t& c)
   }
 
   #if TALLYBOX_PROGRAM_FORCE_WRITE_DEFAULTS
-  loadDefaults(c);
+  writeFactoryDefault(c);
   #endif
 
   /*handle network configuration part*/

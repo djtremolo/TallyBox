@@ -200,7 +200,8 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
   //char bufContent[MAX_HTML_FILE_SIZE] = "";
   char *bufContent = myConfigUserHtmBuf;
   String path = s.uri();
-  bool validated = true;
+  bool validated = false;
+  String userFeedback = "";
   static bool fileHasBeenRead = false;
 
   DBG_OUTPUT_PORT.println("handleConfigUserHtm: " + path);
@@ -222,14 +223,50 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
 
   if(useServerArgs)
   {
-    c.user.isMaster = (server.arg("connectionType") == "master");
     c.user.cameraId = (uint16_t)(server.arg("cameraId").toInt());
+
+    tallyBoxOutput_t ch = OUTPUT_NONE;
+    float oldGreen = c.user.greenBrightnessPercent;
+    float oldRed = c.user.redBrightnessPercent;
+
     c.user.greenBrightnessPercent = round(server.arg("greenBrightnessPercent").toFloat());
     c.user.redBrightnessPercent = round(server.arg("redBrightnessPercent").toFloat());
 
-    if(server.arg("verify") == "on")
+    if(c.user.greenBrightnessPercent != oldGreen)
     {
+      ch = OUTPUT_GREEN;
+    }
+    if(c.user.redBrightnessPercent != oldRed)
+    {
+      if(ch == OUTPUT_GREEN)
+      {
+        ch = OUTPUT_LINKED;
+      }
+      else
+      {
+        ch = OUTPUT_RED;
+      }
+    }
+
+    setBrightnessSettingMode(ch, (ch != OUTPUT_NONE));
+
+    if(server.arg("verify") == "Verify")
+    {
+      userFeedback += "Verified. The configuration can now be stored.";
       validated = true;
+    }
+
+    if(server.arg("store") == "Store parameters")
+    {
+      if(tallyBoxWriteConfiguration(c.user))
+      {
+        /*success!*/
+        userFeedback += "Configuration stored successfully!";
+      }
+      else
+      {
+        userFeedback += "Configuration storing FAILED!";
+      }
     }
   }
 
@@ -239,12 +276,14 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
   if(myBuf)
   {
     snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
-            (c.user.isMaster ? "checked" : ""),
-            (c.user.isMaster ? "" : "checked"),
             c.user.cameraId,
             (uint16_t)round(c.user.greenBrightnessPercent),
+            (c.network.isMaster ? "enabled" : "disabled"),
             (uint16_t)round(c.user.redBrightnessPercent),
-            (validated?"enabled":"disabled"));
+            (c.network.isMaster ? "enabled" : "disabled"),
+            (validated?"enabled":"disabled"),
+            userFeedback.c_str()
+            );
 
     server.send(200, "text/html", myBuf);
 
@@ -262,7 +301,8 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
 bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
   char *bufContent = myConfigNetworkHtmBuf;
   String path = s.uri();
-  bool validated = true;
+  bool validated = false;
+  String userFeedback = "";
 
   DBG_OUTPUT_PORT.println("handleConfigNetworkHtm: " + path);
   if (path.endsWith("/")) {
@@ -280,21 +320,43 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
     strcpy(c.network.wifiSSID, server.arg("wifiSSID").c_str());
     strcpy(c.network.wifiPasswd, server.arg("wifiPassword").c_str());
 
+    c.network.isMaster = (server.arg("connectionType") == "master");
+
     String ha = server.arg("hostAddress");
     c.network.hostAddress.fromString(ha);
 
-    String oa = server.arg("ownAddress");
-    c.network.ownAddress.fromString(oa);
+    c.network.hasStaticIp = (server.arg("staticIpInUse") == "staticIpInUse");
 
-    String snm = server.arg("subnetMask");
-    c.network.subnetMask.fromString(snm);
-
-    String dg = server.arg("defaultGateway");
-    c.network.defaultGateway.fromString(dg);
-
-    if(server.arg("verify") == "on")
+    if(c.network.hasStaticIp)
     {
+
+      String oa = server.arg("ownAddress");
+      c.network.ownAddress.fromString(oa);
+
+      String snm = server.arg("subnetMask");
+      c.network.subnetMask.fromString(snm);
+
+      String dg = server.arg("defaultGateway");
+      c.network.defaultGateway.fromString(dg);
+    }
+
+    if(server.arg("verify") == "Verify")
+    {
+      userFeedback += "Verified. The configuration can now be stored.";
       validated = true;
+    }
+
+    if(server.arg("store") == "Store parameters")
+    {
+      if(tallyBoxWriteConfiguration(c.network))
+      {
+        /*success!*/
+        userFeedback += "Configuration stored successfully!";
+      }
+      else
+      {
+        userFeedback += "Configuration storing FAILED!";
+      }
     }
   }
 
@@ -306,13 +368,27 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
     snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
             c.network.wifiSSID,
             c.network.wifiPasswd,
+            (c.network.isMaster ? "checked" : ""),
+            (c.network.isMaster ? "" : "checked"),
             c.network.hostAddress.toString().c_str(),
+            (c.network.isMaster ? "enabled" : "disabled"),
             (c.network.hasStaticIp ? "checked" : ""),
-            c.network.ownAddress.toString().c_str(),
-            c.network.subnetMask.toString().c_str(),
-            c.network.defaultGateway.toString().c_str(),
+            (c.network.hasStaticIp ? 
+                c.network.ownAddress.toString().c_str() 
+                : WiFi.localIP().toString().c_str()),
+            (c.network.hasStaticIp ? "enabled" : "disabled"),
+            (c.network.hasStaticIp ? 
+                c.network.subnetMask.toString().c_str() 
+                : WiFi.subnetMask().toString().c_str()),
+            (c.network.hasStaticIp ? "enabled" : "disabled"),
+            (c.network.hasStaticIp ? 
+                c.network.defaultGateway.toString().c_str() 
+                : WiFi.gatewayIP().toString().c_str()),
+            (c.network.hasStaticIp ? "enabled" : "disabled"),
             c.network.mdnsHostName,
-            (validated ? "enabled" : "disabled"));
+            (validated ? "enabled" : "disabled"),
+            userFeedback.c_str()
+            );
 
     server.send(200, "text/html", myBuf);
     free(myBuf);

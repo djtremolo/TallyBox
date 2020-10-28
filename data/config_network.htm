@@ -36,6 +36,26 @@
         /><br />
         <br/>
         <br/>
+        <label>Connection Type</label><br />
+        <input
+          type='radio'
+          name='connectionType'
+          id='master'
+          value='master'
+          %s
+        />
+        <label for='master'>Master: Connect to ATEM board</label>
+        <br />
+        <input
+          type='radio'
+          name='connectionType'
+          id='follower'
+          value='follower'
+          %s
+        />
+        <label for='follower'>Follower: Connect to PeerNetwork host</label>
+        <br />
+        <br />
         <label>ATEM Host IP</label><br />
         <input
           type='text'
@@ -43,6 +63,7 @@
           value='%s'
           size='15'
           maxlength='15'
+          %s
         /><br />
         <br />
         <br />
@@ -62,6 +83,7 @@
           value='%s'
           size='15'
           maxlength='15'
+          %s
         />
         <br />
         <br />
@@ -72,6 +94,7 @@
           value='%s'
           size='15'
           maxlength='15'
+          %s
         /><br />
         <br />
         <label>Default Gateway</label><br />
@@ -81,6 +104,7 @@
           value='%s'
           size='15'
           maxlength='15'
+          %s
         /><br />
         <br />
         <br/>
@@ -96,18 +120,17 @@
         <br/>
         <input
           type='SUBMIT'
-          name='submit'
+          name='verify'
           value='Verify'
-          id='verify'
         /><br />
         <br />
         <input
           type='SUBMIT'
-          name='submit'
+          name='store'
           value='Store parameters'
-          id='store'
           %s
         /><br />
+        %s
         <br />
         <br />
       </form>
