@@ -49,8 +49,8 @@ void setDefaults(tallyBoxNetworkConfig_t& c)
   c.sizeOfConfiguration = sizeof(tallyBoxNetworkConfig_t);
   c.versionOfConfiguration = TALLYBOX_CONFIGURATION_VERSION;
 
-  strcpy(c.wifiSSID, TALLYBOX_CONFIGURATION_DEFAULT_SSID);
-  strcpy(c.wifiPasswd, TALLYBOX_CONFIGURATION_DEFAULT_PASSWD);
+  strlcpy(c.wifiSSID, TALLYBOX_CONFIGURATION_DEFAULT_SSID, sizeof(c.wifiSSID));
+  strlcpy(c.wifiPasswd, TALLYBOX_CONFIGURATION_DEFAULT_PASSWD, sizeof(c.wifiPasswd));
 
   c.isMaster = TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER; 
 
@@ -69,7 +69,7 @@ void setDefaults(tallyBoxNetworkConfig_t& c)
 
   c.hasStaticIp = TALLYBOX_CONFIGURATION_DEFAULT_HASOWNIP; 
 
-  strcpy(c.mdnsHostName, "tallybox");
+  strlcpy(c.mdnsHostName, "tallybox", sizeof(c.mdnsHostName));
 }
 
 void setDefaults(tallyBoxUserConfig_t& c)
@@ -93,6 +93,7 @@ void dumpConf(String confName, tallyBoxNetworkConfig_t& c)
   Serial.println(" - Own IP             = "+c.ownAddress.toString());
   Serial.println(" - Subnet mask        = "+c.subnetMask.toString());
   Serial.println(" - Default gateway    = "+c.defaultGateway.toString());
+  Serial.println(" - MDNS Host Name     = "+String(c.mdnsHostName));
   Serial.print(" - WifiSSID           = ");
   Serial.println(c.wifiSSID);
   Serial.println(" - Password           = <not shown>");
@@ -264,9 +265,9 @@ bool deSerializeFromJson(tallyBoxNetworkConfig_t& c, char* jsonBuf)
     c.versionOfConfiguration = doc["versionOfConfiguration"];
     
     String ssid = doc["wifiSSID"];
-    strncpy(c.wifiSSID, ssid.c_str(), CONF_NETWORK_NAME_LEN_SSID);
+    strlcpy(c.wifiSSID, ssid.c_str(), CONF_NETWORK_NAME_LEN_SSID);
     String pwd = doc["wifiPasswd"];
-    strncpy(c.wifiPasswd, pwd.c_str(), CONF_NETWORK_NAME_LEN_PASSWD);
+    strlcpy(c.wifiPasswd, pwd.c_str(), CONF_NETWORK_NAME_LEN_PASSWD);
 
     c.isMaster = doc["isMaster"];
 
@@ -284,7 +285,7 @@ bool deSerializeFromJson(tallyBoxNetworkConfig_t& c, char* jsonBuf)
 
     c.hasStaticIp = doc["hasStaticIp"];
     String mdnshost = doc["mdnsHostName"];
-    strncpy(c.mdnsHostName, mdnshost.c_str(), CONF_NETWORK_NAME_LEN_MDNS_NAME);
+    strlcpy(c.mdnsHostName, mdnshost.c_str(), CONF_NETWORK_NAME_LEN_MDNS_NAME);
 
     ret = true;
   }

@@ -11,12 +11,15 @@
 
 static FS* filesystem = &LittleFS;
 
+extern const char* TallyboxFirmwareVersion;
+
 #define DBG_OUTPUT_PORT Serial
 
 static ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 
 static char *myIndexHtmBuf = NULL;
+static char *myRestartHtmBuf = NULL;
 static char *myConfigNetworkHtmBuf = NULL;
 static char *myConfigUserHtmBuf = NULL;
 
@@ -159,6 +162,7 @@ bool getRawHtm(const char* fileName, char *bufContent, size_t maxLen)
     bufLen = file.readBytes(bufContent, maxLen);
     if(bufLen > 0)
     {
+      bufContent[bufLen] = 0; /*terminate*/
       dataValid = true;
     }
     file.close();
@@ -191,10 +195,27 @@ bool handleIndexHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs
     fileHasBeenRead = true;
   }
 
-  server.send(200, "text/html", bufContent);
+  /*allocate buffer for final html*/
+  char *myBuf = (char*)malloc(MAX_HTML_FILE_SIZE);
+
+  if(myBuf)
+  {
+    snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+            TallyboxFirmwareVersion
+            );
+
+    server.send(200, "text/html", myBuf);
+
+    free(myBuf);
+  }
+  else
+  {
+    Serial.println("malloc failed");
+    server.send(404, "text/html", "malloc failed");
+  }
+
   return true;
 }
-
 
 bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
   //char bufContent[MAX_HTML_FILE_SIZE] = "";
@@ -276,6 +297,7 @@ bool handleConfigUserHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServe
   if(myBuf)
   {
     snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+            TallyboxFirmwareVersion,
             c.user.cameraId,
             (uint16_t)round(c.user.greenBrightnessPercent),
             (c.network.isMaster ? "enabled" : "disabled"),
@@ -317,8 +339,8 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
   
   if(useServerArgs)
   {
-    strcpy(c.network.wifiSSID, server.arg("wifiSSID").c_str());
-    strcpy(c.network.wifiPasswd, server.arg("wifiPassword").c_str());
+    strlcpy(c.network.wifiSSID, server.arg("wifiSSID").c_str(), sizeof(c.network.wifiSSID));
+    strlcpy(c.network.wifiPasswd, server.arg("wifiPassword").c_str(), sizeof(c.network.wifiPasswd));
 
     c.network.isMaster = (server.arg("connectionType") == "master");
 
@@ -329,7 +351,6 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
 
     if(c.network.hasStaticIp)
     {
-
       String oa = server.arg("ownAddress");
       c.network.ownAddress.fromString(oa);
 
@@ -339,6 +360,13 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
       String dg = server.arg("defaultGateway");
       c.network.defaultGateway.fromString(dg);
     }
+
+
+    Serial.println("MDNSHOST = '"+server.arg("mDnsHostName")+"'");
+
+
+    String hostName = server.arg("mDnsHostName");
+    strlcpy(c.network.mdnsHostName, hostName.c_str(), sizeof(c.network.mdnsHostName));
 
     if(server.arg("verify") == "Verify")
     {
@@ -366,6 +394,7 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
   if(myBuf)
   {
     snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+            TallyboxFirmwareVersion,
             c.network.wifiSSID,
             c.network.wifiPasswd,
             (c.network.isMaster ? "checked" : ""),
@@ -401,6 +430,90 @@ bool handleConfigNetworkHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useSe
 
   return true;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool handleRestartHtm(tallyBoxConfig_t& c, ESP8266WebServer& s, bool useServerArgs) {
+  char *bufContent = myRestartHtmBuf;
+  String path = s.uri();
+  bool restartEnabled = false;
+  String userFeedback = "";
+
+  DBG_OUTPUT_PORT.println("handleRestartHtm: " + path);
+  if (path.endsWith("/")) {
+    path += "restart.htm";
+  }
+
+  String contentType = getContentType(path);
+  if(!getRawHtm("restart.htm", bufContent, MAX_HTML_FILE_SIZE))
+  {
+    return false;
+  }
+  
+  if(useServerArgs)
+  {
+    restartEnabled = (server.arg("action") == "restart");
+
+    if(server.arg("submit") == "Submit")
+    {
+      if(restartEnabled)
+      {
+        Serial.println("*******************************************");
+        Serial.println("*******  RESTART  *************************");
+        Serial.println("*******************************************");
+        server.send(200, "text/html", "<html>Restarting.... wait 30 seconds before reconnecting</html>");
+        delay(1000);
+        ESP.restart();
+      }
+    }
+  }
+
+  /*allocate buffer for final html*/
+  char *myBuf = (char*)malloc(MAX_HTML_FILE_SIZE);
+
+  if(myBuf)
+  {
+    snprintf(myBuf, MAX_HTML_FILE_SIZE, bufContent, 
+            TallyboxFirmwareVersion,
+            (restartEnabled ? "checked" : ""),
+            (restartEnabled ? "" : "checked"),
+            "enabled"
+            );
+
+    server.send(200, "text/html", myBuf);
+    free(myBuf);
+  }
+  else
+  {
+    Serial.println("malloc failed");
+    server.send(404, "text/html", "malloc failed");
+  }
+
+  return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void handleFileUpload() {
   if (server.uri() != "/edit") {
@@ -453,6 +566,11 @@ void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
   if((myIndexHtmBuf = (char*)malloc(MAX_HTML_FILE_SIZE)) == NULL)
   {
     Serial.println("malloc failed: myIndexHtmBuf");
+    return;
+  }
+  if((myRestartHtmBuf = (char*)malloc(MAX_HTML_FILE_SIZE)) == NULL)
+  {
+    Serial.println("malloc failed: myRestartHtmBuf");
     return;
   }
   if((myConfigNetworkHtmBuf = (char*)malloc(MAX_HTML_FILE_SIZE)) == NULL)
@@ -539,6 +657,18 @@ void tallyBoxWebServerInitialize(tallyBoxConfig_t& c)
 
   server.on("/config_network.htm", HTTP_POST, [&]() {
     if (!handleConfigNetworkHtm(c, server, true)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/restart.htm", HTTP_GET, [&]() {
+    if (!handleRestartHtm(c, server, false)) {
+      server.send(404, "text/plain", "FileNotFound");
+    }
+  });
+
+  server.on("/restart.htm", HTTP_POST, [&]() {
+    if (!handleRestartHtm(c, server, true)) {
       server.send(404, "text/plain", "FileNotFound");
     }
   });

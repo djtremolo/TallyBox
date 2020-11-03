@@ -1,0 +1,51 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="tallybox.css">    
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>TallyBox</title>
+  </head>
+  <body>
+    <div class='titlebar'>
+      <h1>TallyBox Restart</h1>
+      <h2>Version %s</h2>
+      <a href="index.htm">Back to main page</a>
+      <br />
+      <br />
+      <br />
+      <br />    
+    </div>
+
+    <div class='container'>
+      <form action='restart.htm' method='post'>
+        <label>Confirm restart</label><br />
+        <input
+          type='radio'
+          name='action'
+          id='restart'
+          value='restart'
+          %s
+        />
+        <label for='restart'>Restart</label>
+        <br />
+        <input
+          type='radio'
+          name='action'
+          id='cancel'
+          value='cancel'
+          %s
+        />
+        <label for='cancel'>Do not restart</label>
+        <br />
+        <br />
+        <input
+          type='SUBMIT'
+          name='submit'
+          value='Submit'
+          %s
+        /><br />
+        <br />
+        <br />        
+      </form>
+    </div>
+  </body>
+</html>

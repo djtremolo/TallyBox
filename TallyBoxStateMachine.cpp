@@ -133,8 +133,8 @@ static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
 
       /*initialize Over-the-Air upgdade mechanism*/
       delay(100);
+      MDnsInitialize(c);    /*must be initialized before OTA*/
       OTAInitialize();
-      MDnsInitialize(c);
       tallyBoxTerminalInitialize(c);
       tallyBoxWebServerInitialize(c);
       break;
@@ -324,6 +324,11 @@ void tallyBoxStateMachineInitialize(tallyBoxConfig_t& c)
 
 static void MDnsInitialize(tallyBoxConfig_t& c)
 {
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  Serial.println("Starting mDNS with hostname '"+String(c.network.mdnsHostName)+"'");
+
   if(!MDNS.begin(c.network.mdnsHostName)) 
   {
     Serial.println("Error setting up MDNS responder!");
@@ -443,4 +448,3 @@ void tallyBoxStateMachineUpdate(tallyBoxConfig_t& c, tallyBoxState_t switchToSta
 
   DEBUG_PULSE_STOP(DIAG_LED_LOOP_FULL);
 }
-

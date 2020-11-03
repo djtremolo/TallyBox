@@ -41,7 +41,8 @@ void OTAInitialize()
     }
   });    
 
-  ArduinoOTA.begin();
+  ArduinoOTA.begin(false);
+  MDNS.enableArduino(8266);
 
   initialized = true;
 }
