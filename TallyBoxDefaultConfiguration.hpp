@@ -1,6 +1,6 @@
 #if 1
 #define TALLYBOX_CONFIGURATION_DEFAULT_SSID             "myTallyNetSSID"        /*customize*/
-#define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           ""                      /*customize*/
+#define TALLYBOX_CONFIGURATION_DEFAULT_PASSWD           "myTallyNetPassword"    /*customize*/
 #else
 #include "myPrivateCredentials.hpp"
 #endif
