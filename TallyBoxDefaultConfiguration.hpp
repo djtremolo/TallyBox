@@ -15,5 +15,5 @@
 #define TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID       1
 #define TALLYBOX_CONFIGURATION_DEFAULT_ISMASTER        (TALLYBOX_CONFIGURATION_DEFAULT_CAMERA_ID==1)
 
-#define TALLYBOX_PROGRAM_FORCE_WRITE_DEFAULTS          0       /*enable this for writing the default values to EEPROM, disable for normal operation*/
+#define TALLYBOX_PROGRAM_FORCE_WRITE_DEFAULTS          0       /*enable this for writing the default values to network config file, disable for normal operation*/
 

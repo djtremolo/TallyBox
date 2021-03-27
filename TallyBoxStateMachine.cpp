@@ -93,21 +93,49 @@ static void updateLed(uint16_t currentTick)
 }
 
 
+static void connectToWifi(tallyBoxConfig_t& c)
+{
+  Serial.printf("Connecting to WiFi ('%s')", c.network.wifiSSID); 
+
+  if(c.network.hasStaticIp)
+  {
+    IPAddress primaryDNS(8, 8, 8, 8);   //optional
+    IPAddress secondaryDNS(8, 8, 4, 4); //optional
+
+    if(!WiFi.config(c.network.ownAddress, c.network.defaultGateway, c.network.subnetMask, primaryDNS, secondaryDNS)) 
+    {
+      Serial.println("STA Failed to configure");
+    }
+  }
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(c.network.wifiSSID, c.network.wifiPasswd);
+
+}
+
+
+
 static void stateConnectingToWifi(tallyBoxConfig_t& c, uint8_t *internalState)
 {
+  static int ownCounter = 0;
+  const int dotPrintPeriod = 200;
+
   switch(internalState[CONNECTING_TO_WIFI])
   {
     case 0: /*init wifi device*/
-      Serial.print("Connecting to WiFi"); 
-      WiFi.mode(WIFI_STA);
-      WiFi.begin(c.network.wifiSSID, c.network.wifiPasswd);
+      connectToWifi(c);
+      ownCounter = 0;
       internalState[CONNECTING_TO_WIFI] = 1;
       break;
 
     case 1: /*wait*/
       if(WiFi.status() != WL_CONNECTED)
       {
-        Serial.print(".");
+        if(ownCounter % dotPrintPeriod == 0)
+        {
+          Serial.print(".");
+        }
+        ownCounter = ((ownCounter + 1) % dotPrintPeriod);
       }
       else
       {
